@@ -115,10 +115,17 @@ class ModelService:
                 raise FileNotFoundError(f"Model file not found: {model_file}")
 
             # Check if user tried to load an mmproj vision projector as a standalone LLM
-            if "mmproj" in model_file.name.lower():
+            filename_lower = model_file.name.lower()
+            if "mmproj" in filename_lower:
                 raise ValueError(
                     f"'{model_file.name}' is a Multimodal Vision Projector (mmproj), not a standalone language model. "
                     f"Please load a full LLM weight file (e.g. Q4_K_M, Q5_K_M, Q8_0)."
+                )
+
+            if any(k in filename_lower for k in ["asr", "speech", "whisper", "conformer", "wav2vec"]):
+                raise ValueError(
+                    f"'{model_file.name}' is an ASR / Speech Recognition model, not a text generation LLM. "
+                    f"llama.cpp requires a text LLM (such as Qwen 2.5, Llama 3.2, Mistral, Gemma 2, or Phi-3.5)."
                 )
 
             # Unload any current model first
@@ -144,7 +151,13 @@ class ModelService:
                         verbose=False
                     )
                 except Exception as ex:
-                    raise RuntimeError(f"llama.cpp initialization failed for '{model_file.name}': {str(ex)}")
+                    err_str = str(ex)
+                    if "failed to load model" in err_str.lower():
+                        raise RuntimeError(
+                            f"Incompatible GGUF architecture in '{model_file.name}'. "
+                            f"Make sure this is a supported text-generation LLM model."
+                        )
+                    raise RuntimeError(f"llama.cpp loading failed: {err_str}")
 
             loop = asyncio.get_running_loop()
             self.loaded_model = await loop.run_in_executor(None, _load)

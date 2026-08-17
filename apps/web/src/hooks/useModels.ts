@@ -115,6 +115,10 @@ export function useModels() {
     }
   };
 
+  const clearError = () => {
+    setError(null);
+  };
+
   return {
     models,
     activeModel,
@@ -124,6 +128,7 @@ export function useModels() {
     loadingModelId,
     deletingModelId,
     error,
+    clearError,
     loadModel,
     unloadModel,
     deleteModel,
