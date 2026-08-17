@@ -66,9 +66,53 @@ export default function ChatPage() {
   const [maxTokens, setMaxTokens] = useState(512);
 
   const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
+  const [isHydrated, setIsHydrated] = useState(false);
 
   const chatContainerRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // Load chat history and params from localStorage on mount
+  useEffect(() => {
+    try {
+      const savedMessages = localStorage.getItem("neurion_chat_messages");
+      if (savedMessages) {
+        setMessages(JSON.parse(savedMessages));
+      }
+      const savedPrompt = localStorage.getItem("neurion_system_prompt");
+      if (savedPrompt) {
+        setSystemPrompt(savedPrompt);
+      }
+      const savedTemp = localStorage.getItem("neurion_temperature");
+      if (savedTemp) {
+        setTemperature(parseFloat(savedTemp));
+      }
+    } catch {
+      // ignore storage errors
+    } finally {
+      setIsHydrated(true);
+    }
+  }, []);
+
+  // Save chat history to localStorage on change
+  useEffect(() => {
+    if (!isHydrated) return;
+    try {
+      localStorage.setItem("neurion_chat_messages", JSON.stringify(messages));
+    } catch {
+      // ignore storage errors
+    }
+  }, [messages, isHydrated]);
+
+  // Save parameters to localStorage
+  useEffect(() => {
+    if (!isHydrated) return;
+    try {
+      localStorage.setItem("neurion_system_prompt", systemPrompt);
+      localStorage.setItem("neurion_temperature", temperature.toString());
+    } catch {
+      // ignore storage errors
+    }
+  }, [systemPrompt, temperature, isHydrated]);
 
   // Sync selected model with active model
   useEffect(() => {
@@ -149,6 +193,11 @@ export default function ChatPage() {
   const handleClearChat = () => {
     if (isStreaming) stopStreaming();
     setMessages([]);
+    try {
+      localStorage.removeItem("neurion_chat_messages");
+    } catch {
+      // ignore
+    }
   };
 
   return (
