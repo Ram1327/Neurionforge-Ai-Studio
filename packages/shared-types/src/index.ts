@@ -93,6 +93,7 @@ export interface HubModelResult {
   last_modified: string;
   tags: string[];
   pipeline_tag?: string;
+  featured?: boolean;
 }
 
 export interface GGUFFileInfo {

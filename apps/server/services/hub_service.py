@@ -7,22 +7,67 @@ from services.model_service import parse_quantization, MODELS_DIR
 
 api = HfApi()
 
+# Curated top verified local LLMs for the Home view
+FEATURED_REPOS = [
+    "Qwen/Qwen2.5-Coder-1.5B-Instruct-GGUF",
+    "Qwen/Qwen2.5-Coder-7B-Instruct-GGUF",
+    "bartowski/Llama-3.2-3B-Instruct-GGUF",
+    "unsloth/DeepSeek-R1-Distill-Qwen-1.5B-GGUF",
+    "bartowski/DeepSeek-R1-Distill-Qwen-7B-GGUF",
+    "bartowski/Mistral-7B-Instruct-v0.3-GGUF",
+    "bartowski/gemma-2-2b-it-GGUF",
+    "bartowski/Phi-3.5-mini-instruct-GGUF",
+    "Qwen/Qwen2.5-1.5B-Instruct-GGUF",
+    "bartowski/Llama-3.2-1B-Instruct-GGUF",
+]
+
 class HubService:
     def search_models(self, query: str = "", limit: int = 24) -> List[Dict[str, Any]]:
-        """Search HuggingFace Hub for GGUF models, sorted by popularity"""
+        """Search HuggingFace Hub for GGUF models, prioritizing featured models when query is empty"""
+        search_query = query.strip() if query else ""
+        results = []
+        seen_repos = set()
+
+        # If query is empty, first fetch metadata for curated featured models
+        if not search_query:
+            for repo_id in FEATURED_REPOS:
+                try:
+                    info = api.model_info(repo_id)
+                    parts = repo_id.split("/")
+                    author = parts[0] if len(parts) > 1 else "community"
+                    model_name = parts[1] if len(parts) > 1 else parts[0]
+                    seen_repos.add(repo_id.lower())
+                    results.append({
+                        "repo_id": repo_id,
+                        "author": author,
+                        "model_name": model_name,
+                        "downloads": getattr(info, "downloads", 0) or 0,
+                        "likes": getattr(info, "likes", 0) or 0,
+                        "last_modified": str(getattr(info, "last_modified", "") or ""),
+                        "tags": getattr(info, "tags", []) or [],
+                        "pipeline_tag": getattr(info, "pipeline_tag", "text-generation") or "text-generation",
+                        "featured": True
+                    })
+                except Exception:
+                    pass
+
+        # Live HuggingFace Hub search
         try:
-            search_query = query.strip() if query else None
+            hf_search = search_query if search_query else None
             models = api.list_models(
-                search=search_query,
+                search=hf_search,
                 filter="gguf",
                 limit=limit,
                 sort="downloads",
                 full=False
             )
             
-            results = []
             for m in models:
                 repo_id = m.id
+                if repo_id.lower() in seen_repos:
+                    continue
+                seen_repos.add(repo_id.lower())
+
                 parts = repo_id.split("/")
                 author = parts[0] if len(parts) > 1 else "community"
                 model_name = parts[1] if len(parts) > 1 else parts[0]
@@ -35,12 +80,13 @@ class HubService:
                     "likes": getattr(m, "likes", 0) or 0,
                     "last_modified": str(getattr(m, "last_modified", "") or ""),
                     "tags": getattr(m, "tags", []) or [],
-                    "pipeline_tag": getattr(m, "pipeline_tag", "text-generation") or "text-generation"
+                    "pipeline_tag": getattr(m, "pipeline_tag", "text-generation") or "text-generation",
+                    "featured": False
                 })
-            return results
         except Exception as e:
             print(f"[ERROR] Hub search failed: {e}")
-            return []
+
+        return results[:limit] if search_query else results
 
     def list_gguf_files(self, repo_id: str) -> List[Dict[str, Any]]:
         """List all .gguf files in a HuggingFace repository with sizes and local presence check"""

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useCallback } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import {
@@ -19,7 +19,8 @@ import {
   AlertCircle,
   HardDrive,
   Cpu,
-  ChevronDown,
+  ArrowDown,
+  ArrowUp,
 } from "lucide-react";
 import { ChatMessage, InferenceStats } from "@neurionforge/shared-types";
 import { useModels } from "@/hooks/useModels";
@@ -68,8 +69,14 @@ export default function ChatPage() {
   const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
   const [isHydrated, setIsHydrated] = useState(false);
 
+  // Scroll Management State
+  const [isAtBottom, setIsAtBottom] = useState(true);
+  const [showScrollTop, setShowScrollTop] = useState(false);
+
   const chatContainerRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const isAtBottomRef = useRef(true);
+  isAtBottomRef.current = isAtBottom;
 
   // Load chat history and params from localStorage on mount
   useEffect(() => {
@@ -145,12 +152,42 @@ export default function ChatPage() {
     },
   });
 
-  // Auto-scroll chat on message updates
+  // Track user scroll position
+  const handleScroll = useCallback(() => {
+    if (!chatContainerRef.current) return;
+    const { scrollTop, scrollHeight, clientHeight } = chatContainerRef.current;
+    
+    // User is considered at bottom if within 80px of bottom edge
+    const atBottom = scrollHeight - scrollTop - clientHeight <= 80;
+    setIsAtBottom(atBottom);
+    setShowScrollTop(scrollTop > 200);
+  }, []);
+
+  // Smart auto-scroll: ONLY scroll to bottom if user has NOT manually scrolled up
   useEffect(() => {
-    if (chatContainerRef.current) {
+    if (isAtBottomRef.current && chatContainerRef.current) {
       chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
     }
   }, [messages, streamedContent]);
+
+  const scrollToBottom = () => {
+    if (chatContainerRef.current) {
+      chatContainerRef.current.scrollTo({
+        top: chatContainerRef.current.scrollHeight,
+        behavior: "smooth",
+      });
+      setIsAtBottom(true);
+    }
+  };
+
+  const scrollToTop = () => {
+    if (chatContainerRef.current) {
+      chatContainerRef.current.scrollTo({
+        top: 0,
+        behavior: "smooth",
+      });
+    }
+  };
 
   const handleSendMessage = (textToSend?: string) => {
     const text = (textToSend || inputText).trim();
@@ -165,6 +202,7 @@ export default function ChatPage() {
     const newHistory = [...messages, userMsg];
     setMessages(newHistory);
     setInputText("");
+    setIsAtBottom(true);
 
     // Dispatch inference over WebSocket
     sendPrompt({
@@ -290,7 +328,8 @@ export default function ChatPage() {
         {/* Chat History Stream */}
         <div
           ref={chatContainerRef}
-          className="flex-1 overflow-y-auto p-4 md:p-6 space-y-6"
+          onScroll={handleScroll}
+          className="flex-1 overflow-y-auto p-4 md:p-6 space-y-6 relative"
         >
           {messages.length === 0 && !isStreaming ? (
             <div className="h-full flex flex-col items-center justify-center max-w-xl mx-auto text-center my-auto py-12">
@@ -445,6 +484,34 @@ export default function ChatPage() {
                 </div>
               )}
             </>
+          )}
+        </div>
+
+        {/* Floating Scroll-to-Top and Scroll-to-Bottom Quick Navigation Controls */}
+        <div className="absolute right-6 bottom-24 z-20 flex flex-col space-y-2">
+          {showScrollTop && (
+            <button
+              onClick={scrollToTop}
+              className="p-2.5 rounded-full bg-slate-800/90 hover:bg-slate-750 border border-slate-700 text-slate-300 hover:text-white shadow-lg backdrop-blur transition-all hover:scale-105"
+              title="Scroll to Top"
+            >
+              <ArrowUp className="w-4 h-4" />
+            </button>
+          )}
+
+          {!isAtBottom && (
+            <button
+              onClick={scrollToBottom}
+              className={`flex items-center space-x-1.5 px-3 py-2 rounded-full border shadow-xl backdrop-blur transition-all hover:scale-105 ${
+                isStreaming
+                  ? "bg-cyan-950/90 border-cyan-500/50 text-cyan-300 animate-bounce"
+                  : "bg-slate-800/90 border-slate-700 text-slate-200 hover:bg-slate-750"
+              }`}
+              title="Scroll to Bottom"
+            >
+              <ArrowDown className="w-4 h-4" />
+              {isStreaming && <span className="text-xs font-semibold">Generating...</span>}
+            </button>
           )}
         </div>
 
