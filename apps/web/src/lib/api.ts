@@ -1,4 +1,12 @@
-import { ModelInfo, ModelLoadResponse, SystemStatus } from "@neurionforge/shared-types";
+import {
+  ModelInfo,
+  ModelLoadResponse,
+  SystemStatus,
+  HubModelResult,
+  GGUFFileInfo,
+  DownloadJob,
+  StartDownloadResponse,
+} from "@neurionforge/shared-types";
 
 export const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 export const WS_BASE = process.env.NEXT_PUBLIC_WS_URL || "ws://localhost:8000";
@@ -27,7 +35,7 @@ async function fetchJson<T>(endpoint: string, options?: RequestInit): Promise<T>
       throw new Error(errorMsg);
     }
 
-    return await res.json() as T;
+    return (await res.json()) as T;
   } catch (err: any) {
     if (err.name === "TypeError" && err.message.includes("fetch")) {
       throw new Error("Unable to connect to NeurionForge Server. Make sure the backend is running on port 8000.");
@@ -37,13 +45,36 @@ async function fetchJson<T>(endpoint: string, options?: RequestInit): Promise<T>
 }
 
 export const api = {
+  // System & Core
   getHealth: (): Promise<SystemStatus> => fetchJson<SystemStatus>("/health"),
+
+  // Local Models
   getModels: (): Promise<ModelInfo[]> => fetchJson<ModelInfo[]>("/models"),
   scanModels: (): Promise<ModelInfo[]> => fetchJson<ModelInfo[]>("/models/scan", { method: "POST" }),
-  loadModel: (modelId: string): Promise<ModelLoadResponse> => 
+  loadModel: (modelId: string): Promise<ModelLoadResponse> =>
     fetchJson<ModelLoadResponse>(`/models/${encodeURIComponent(modelId)}/load`, { method: "POST" }),
   unloadModel: (modelId?: string): Promise<ModelLoadResponse> => {
     const endpoint = modelId ? `/models/${encodeURIComponent(modelId)}/unload` : "/models/unload";
     return fetchJson<ModelLoadResponse>(endpoint, { method: "POST" });
   },
+
+  // HuggingFace Hub & Downloads (Phase 1.1)
+  searchHub: (q: string = "", limit: number = 20): Promise<HubModelResult[]> =>
+    fetchJson<HubModelResult[]>(`/hub/search?q=${encodeURIComponent(q)}&limit=${limit}`),
+
+  listHubFiles: (repoId: string): Promise<GGUFFileInfo[]> =>
+    fetchJson<GGUFFileInfo[]>(`/hub/files?repo_id=${encodeURIComponent(repoId)}`),
+
+  startDownload: (repoId: string, filename: string): Promise<StartDownloadResponse> =>
+    fetchJson<StartDownloadResponse>("/downloads/start", {
+      method: "POST",
+      body: JSON.stringify({ repo_id: repoId, filename }),
+    }),
+
+  getDownloads: (): Promise<DownloadJob[]> => fetchJson<DownloadJob[]>("/downloads"),
+
+  cancelDownload: (jobId: string): Promise<{ job_id: string; cancelled: boolean }> =>
+    fetchJson<{ job_id: string; cancelled: boolean }>(`/downloads/${encodeURIComponent(jobId)}/cancel`, {
+      method: "POST",
+    }),
 };

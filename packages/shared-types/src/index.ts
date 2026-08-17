@@ -74,6 +74,58 @@ export interface ModelLoadResponse {
 }
 
 // -----------------------------------------------------------------------------
+// HuggingFace Hub & Download Types (Phase 1.1)
+// -----------------------------------------------------------------------------
+
+export interface HubModelResult {
+  repo_id: string;
+  author: string;
+  model_name: string;
+  downloads: number;
+  likes: number;
+  last_modified: string;
+  tags: string[];
+  pipeline_tag?: string;
+}
+
+export interface GGUFFileInfo {
+  filename: string;
+  repo_id: string;
+  size_gb: number;
+  quantization: string;
+  already_downloaded: boolean;
+  url: string;
+}
+
+export type DownloadStatus = 'queued' | 'running' | 'done' | 'failed' | 'cancelled';
+
+export interface DownloadJob {
+  job_id: string;
+  repo_id: string;
+  filename: string;
+  status: DownloadStatus;
+  bytes_downloaded: number;
+  total_bytes: number;
+  percent: number;
+  speed_mbps: number;
+  eta_sec: number | null;
+  started_at?: string;
+  finished_at?: string;
+  error?: string;
+}
+
+export interface StartDownloadRequest {
+  repo_id: string;
+  filename: string;
+}
+
+export interface StartDownloadResponse {
+  job_id: string;
+  status: DownloadStatus;
+  message?: string;
+}
+
+// -----------------------------------------------------------------------------
 // Fine-Tuning & Adapter Types
 // -----------------------------------------------------------------------------
 

@@ -37,9 +37,9 @@ export default function SettingsPage() {
 
   const roadmap = [
     { phase: "Phase 0", title: "Foundations & GGUF Verification", status: "Completed" },
-    { phase: "Phase 1", title: "Inference Studio (LM Studio v1)", status: "Active" },
-    { phase: "Phase 1.1", title: "HuggingFace Hub In-App Downloader", status: "Next" },
-    { phase: "Phase 2", title: "LoRA / QLoRA Fine-Tuning Studio", status: "Upcoming" },
+    { phase: "Phase 1", title: "Inference Studio (LM Studio v1)", status: "Completed" },
+    { phase: "Phase 1.1", title: "HuggingFace Hub In-App Downloader", status: "Active" },
+    { phase: "Phase 2", title: "LoRA / QLoRA Fine-Tuning Studio", status: "Next" },
     { phase: "Phase 3", title: "RAG & Desktop Packaging", status: "Upcoming" },
     { phase: "Phase 4", title: "Local Coding Agent Platform", status: "Upcoming" },
   ];

@@ -11,8 +11,11 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from db import init_db
 from services.model_service import model_service, MODELS_DIR
+from services.download_service import download_service
 from routers.models import router as models_router
 from routers.inference import router as inference_router
+from routers.hub import router as hub_router
+from routers.downloads import router as downloads_router
 
 # Load environment
 dotenv_path = Path(__file__).resolve().parent / ".env"
@@ -34,13 +37,14 @@ async def idle_checker():
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup: initialize database and initial scan
+    # Startup: initialize database, scan local models, start download worker
     await init_db()
     await model_service.scan_models()
+    download_service.start_worker()
     idle_task = asyncio.create_task(idle_checker())
     print(f"[STARTUP] NeurionForge AI Studio Server running. Models dir: {MODELS_DIR}")
     yield
-    # Shutdown: cleanup model from memory
+    # Shutdown: cleanup
     idle_task.cancel()
     if model_service.loaded_model is not None:
         await model_service.unload_model()
@@ -48,8 +52,8 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title="NeurionForge AI Studio Server",
-    description="Local-first LLM inference and fine-tuning engine",
-    version="0.1.0",
+    description="Local-first LLM inference, Hub downloader, and fine-tuning engine",
+    version="0.1.1",
     lifespan=lifespan
 )
 
@@ -70,6 +74,8 @@ app.add_middleware(
 # Include API Routers
 app.include_router(models_router)
 app.include_router(inference_router)
+app.include_router(hub_router)
+app.include_router(downloads_router)
 
 @app.get("/health")
 async def health_check():
