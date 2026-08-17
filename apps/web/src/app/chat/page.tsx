@@ -22,7 +22,7 @@ import {
   ArrowDown,
   ArrowUp,
 } from "lucide-react";
-import { ChatMessage, InferenceStats } from "@neurionforge/shared-types";
+import { ChatMessage } from "@neurionforge/shared-types";
 import { useModels } from "@/hooks/useModels";
 import { useInferenceStream } from "@/hooks/useInferenceStream";
 
@@ -52,6 +52,8 @@ const SUGGESTED_PROMPTS = [
   "Write a high-performance Next.js 15 route handler with caching.",
 ];
 
+const SCROLL_BOTTOM_THRESHOLD = 60; // px from bottom = considered "at bottom"
+
 export default function ChatPage() {
   const { models, activeModel, loadModel, isServerOnline, loadingModelId } = useModels();
 
@@ -60,7 +62,6 @@ export default function ChatPage() {
   const [showSettings, setShowSettings] = useState(false);
   const [selectedModelId, setSelectedModelId] = useState<string>("");
 
-  // Hyperparameters
   const [systemPrompt, setSystemPrompt] = useState(SYSTEM_PROMPT_PRESETS[0].prompt);
   const [temperature, setTemperature] = useState(0.7);
   const [topP, setTopP] = useState(0.9);
@@ -69,59 +70,48 @@ export default function ChatPage() {
   const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
   const [isHydrated, setIsHydrated] = useState(false);
 
-  // Scroll Management State
-  const [isAtBottom, setIsAtBottom] = useState(true);
-  const [showScrollTop, setShowScrollTop] = useState(false);
+  // UI scroll state (only for rendering buttons, NOT for scroll logic)
+  const [showScrollToBottom, setShowScrollToBottom] = useState(false);
+  const [showScrollToTop, setShowScrollToTop] = useState(false);
 
   const chatContainerRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const isAtBottomRef = useRef(true);
-  isAtBottomRef.current = isAtBottom;
+
+  // The ONLY source of truth for whether we should auto-scroll.
+  // This is a ref so it never causes re-renders and is always current.
+  const userScrolledUpRef = useRef(false);
 
   // Load chat history and params from localStorage on mount
   useEffect(() => {
     try {
       const savedMessages = localStorage.getItem("neurion_chat_messages");
-      if (savedMessages) {
-        setMessages(JSON.parse(savedMessages));
-      }
+      if (savedMessages) setMessages(JSON.parse(savedMessages));
       const savedPrompt = localStorage.getItem("neurion_system_prompt");
-      if (savedPrompt) {
-        setSystemPrompt(savedPrompt);
-      }
+      if (savedPrompt) setSystemPrompt(savedPrompt);
       const savedTemp = localStorage.getItem("neurion_temperature");
-      if (savedTemp) {
-        setTemperature(parseFloat(savedTemp));
-      }
+      if (savedTemp) setTemperature(parseFloat(savedTemp));
     } catch {
-      // ignore storage errors
+      // ignore
     } finally {
       setIsHydrated(true);
     }
   }, []);
 
-  // Save chat history to localStorage on change
   useEffect(() => {
     if (!isHydrated) return;
     try {
       localStorage.setItem("neurion_chat_messages", JSON.stringify(messages));
-    } catch {
-      // ignore storage errors
-    }
+    } catch {}
   }, [messages, isHydrated]);
 
-  // Save parameters to localStorage
   useEffect(() => {
     if (!isHydrated) return;
     try {
       localStorage.setItem("neurion_system_prompt", systemPrompt);
       localStorage.setItem("neurion_temperature", temperature.toString());
-    } catch {
-      // ignore storage errors
-    }
+    } catch {}
   }, [systemPrompt, temperature, isHydrated]);
 
-  // Sync selected model with active model
   useEffect(() => {
     if (activeModel && !selectedModelId) {
       setSelectedModelId(activeModel.id);
@@ -130,7 +120,85 @@ export default function ChatPage() {
     }
   }, [activeModel, models, selectedModelId]);
 
-  // Hook for streaming completions
+  // ─── Scroll helpers ───────────────────────────────────────────────────────
+
+  /** Returns true if the container is scrolled to within threshold of the bottom */
+  const checkAtBottom = useCallback((): boolean => {
+    const el = chatContainerRef.current;
+    if (!el) return true;
+    return el.scrollHeight - el.scrollTop - el.clientHeight <= SCROLL_BOTTOM_THRESHOLD;
+  }, []);
+
+  /** Instantly scroll to the absolute bottom (no animation, used internally) */
+  const snapToBottom = useCallback(() => {
+    const el = chatContainerRef.current;
+    if (!el) return;
+    el.scrollTop = el.scrollHeight;
+  }, []);
+
+  /** Smooth scroll to bottom (used when the user clicks the button) */
+  const smoothScrollToBottom = useCallback(() => {
+    const el = chatContainerRef.current;
+    if (!el) return;
+    el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
+    // Re-enable auto-scroll as the user has opted back in
+    userScrolledUpRef.current = false;
+    setShowScrollToBottom(false);
+  }, []);
+
+  const scrollToTop = useCallback(() => {
+    const el = chatContainerRef.current;
+    if (!el) return;
+    el.scrollTo({ top: 0, behavior: "smooth" });
+  }, []);
+
+  /**
+   * This is the ONLY scroll event handler. It runs on every native scroll.
+   * Its only job: update the "user scrolled up" flag and button visibility.
+   * It does NOT trigger any auto-scroll — that's done separately below.
+   */
+  const handleScroll = useCallback(() => {
+    const el = chatContainerRef.current;
+    if (!el) return;
+    const atBottom = checkAtBottom();
+
+    // If user scrolled up, lock auto-scroll immediately
+    if (!atBottom) {
+      userScrolledUpRef.current = true;
+    } else {
+      // User manually scrolled back down to the bottom — re-enable auto-scroll
+      userScrolledUpRef.current = false;
+    }
+
+    setShowScrollToBottom(!atBottom);
+    setShowScrollToTop(el.scrollTop > 200);
+  }, [checkAtBottom]);
+
+  // ─── Auto-scroll logic ────────────────────────────────────────────────────
+
+  // When NEW MESSAGES are added (e.g. user sent, or AI response finished),
+  // always scroll to bottom and reset the lock
+  useEffect(() => {
+    if (messages.length === 0) return;
+    userScrolledUpRef.current = false;
+    // Use requestAnimationFrame to let the DOM paint first
+    requestAnimationFrame(() => {
+      snapToBottom();
+      setShowScrollToBottom(false);
+    });
+  }, [messages.length, snapToBottom]); // Only fire when message COUNT changes, not content
+
+  // When STREAMED CONTENT changes (token-by-token during generation),
+  // ONLY scroll if the user has NOT scrolled up
+  useEffect(() => {
+    if (userScrolledUpRef.current) return; // User is reading — do not scroll
+    requestAnimationFrame(() => {
+      snapToBottom();
+    });
+  }, [snapToBottom]); // This runs on every render during streaming via the component update
+
+  // ─── Inference stream ─────────────────────────────────────────────────────
+
   const {
     isStreaming,
     streamedContent,
@@ -145,49 +213,21 @@ export default function ChatPage() {
         {
           role: "assistant",
           content: fullText,
-          stats: stats,
+          stats,
           created_at: new Date().toISOString(),
         },
       ]);
     },
   });
 
-  // Track user scroll position
-  const handleScroll = useCallback(() => {
-    if (!chatContainerRef.current) return;
-    const { scrollTop, scrollHeight, clientHeight } = chatContainerRef.current;
-    
-    // User is considered at bottom if within 80px of bottom edge
-    const atBottom = scrollHeight - scrollTop - clientHeight <= 80;
-    setIsAtBottom(atBottom);
-    setShowScrollTop(scrollTop > 200);
-  }, []);
-
-  // Smart auto-scroll: ONLY scroll to bottom if user has NOT manually scrolled up
+  // Trigger the streaming content auto-scroll effect
   useEffect(() => {
-    if (isAtBottomRef.current && chatContainerRef.current) {
-      chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
-    }
-  }, [messages, streamedContent]);
+    if (!isStreaming) return;
+    if (userScrolledUpRef.current) return;
+    requestAnimationFrame(() => snapToBottom());
+  }, [streamedContent, isStreaming, snapToBottom]);
 
-  const scrollToBottom = () => {
-    if (chatContainerRef.current) {
-      chatContainerRef.current.scrollTo({
-        top: chatContainerRef.current.scrollHeight,
-        behavior: "smooth",
-      });
-      setIsAtBottom(true);
-    }
-  };
-
-  const scrollToTop = () => {
-    if (chatContainerRef.current) {
-      chatContainerRef.current.scrollTo({
-        top: 0,
-        behavior: "smooth",
-      });
-    }
-  };
+  // ─── Actions ──────────────────────────────────────────────────────────────
 
   const handleSendMessage = (textToSend?: string) => {
     const text = (textToSend || inputText).trim();
@@ -202,9 +242,9 @@ export default function ChatPage() {
     const newHistory = [...messages, userMsg];
     setMessages(newHistory);
     setInputText("");
-    setIsAtBottom(true);
+    // Reset scroll lock whenever user sends a new message
+    userScrolledUpRef.current = false;
 
-    // Dispatch inference over WebSocket
     sendPrompt({
       model_id: selectedModelId || activeModel?.id,
       messages: newHistory,
@@ -231,21 +271,19 @@ export default function ChatPage() {
   const handleClearChat = () => {
     if (isStreaming) stopStreaming();
     setMessages([]);
-    try {
-      localStorage.removeItem("neurion_chat_messages");
-    } catch {
-      // ignore
-    }
+    userScrolledUpRef.current = false;
+    try { localStorage.removeItem("neurion_chat_messages"); } catch {}
   };
+
+  // ─── Render ───────────────────────────────────────────────────────────────
 
   return (
     <div className="flex h-full w-full overflow-hidden">
-      {/* Main Chat Stream */}
       <div className="flex flex-1 flex-col h-full bg-[#090d16] relative overflow-hidden">
-        {/* Top Chat Bar: Model & Parameters HUD */}
+
+        {/* Top HUD Bar */}
         <div className="flex items-center justify-between border-b border-slate-800/80 bg-[#0d121f]/70 px-4 py-2.5 backdrop-blur z-10">
           <div className="flex items-center space-x-3">
-            {/* Model Selector Pill */}
             <div className="flex items-center space-x-2">
               <HardDrive className="h-4 w-4 text-cyan-400" />
               <select
@@ -253,9 +291,7 @@ export default function ChatPage() {
                 onChange={(e) => {
                   const newId = e.target.value;
                   setSelectedModelId(newId);
-                  if (newId && activeModel?.id !== newId) {
-                    loadModel(newId);
-                  }
+                  if (newId && activeModel?.id !== newId) loadModel(newId);
                 }}
                 disabled={models.length === 0 || isStreaming}
                 className="bg-slate-900 border border-slate-700/80 rounded-lg px-2.5 py-1 text-xs font-medium text-slate-200 focus:outline-none focus:border-cyan-500 cursor-pointer disabled:opacity-50"
@@ -271,7 +307,6 @@ export default function ChatPage() {
                 )}
               </select>
             </div>
-
             {loadingModelId && (
               <span className="text-xs text-cyan-400 font-mono flex items-center gap-1.5 animate-pulse">
                 <Cpu className="w-3.5 h-3.5 animate-spin" /> Loading into RAM...
@@ -279,7 +314,6 @@ export default function ChatPage() {
             )}
           </div>
 
-          {/* Controls & Telemetry Stats */}
           <div className="flex items-center space-x-2">
             {liveStats && (
               <div className="hidden sm:flex items-center space-x-2 px-2.5 py-1 rounded-md bg-cyan-950/60 border border-cyan-800/50 text-cyan-300 font-mono text-[11px]">
@@ -290,7 +324,6 @@ export default function ChatPage() {
                 <span>{liveStats.ttft_ms}ms TTFT</span>
               </div>
             )}
-
             <button
               onClick={() => setShowSettings(!showSettings)}
               className={`flex items-center space-x-1.5 px-2.5 py-1 rounded-lg text-xs font-medium border transition-colors ${
@@ -302,7 +335,6 @@ export default function ChatPage() {
               <Sliders className="w-3.5 h-3.5" />
               <span>Params</span>
             </button>
-
             <button
               onClick={handleClearChat}
               title="Clear conversation history"
@@ -313,47 +345,40 @@ export default function ChatPage() {
           </div>
         </div>
 
-        {/* Server Warning if Offline */}
+        {/* Server Offline Banner */}
         {!isServerOnline && (
-          <div className="bg-amber-500/10 border-b border-amber-500/20 px-4 py-2 text-xs text-amber-400 flex items-center justify-between">
-            <div className="flex items-center space-x-2">
-              <AlertCircle className="w-4 h-4" />
-              <span>
-                Backend server is currently offline. Run <code>pnpm dev:server</code> or <code>uvicorn main:app</code> on port 8000.
-              </span>
-            </div>
+          <div className="bg-amber-500/10 border-b border-amber-500/20 px-4 py-2 text-xs text-amber-400 flex items-center space-x-2">
+            <AlertCircle className="w-4 h-4" />
+            <span>
+              Backend server is offline. Run <code>pnpm dev:server</code> on port 8000.
+            </span>
           </div>
         )}
 
-        {/* Chat History Stream */}
+        {/* Chat Message List */}
         <div
           ref={chatContainerRef}
           onScroll={handleScroll}
-          className="flex-1 overflow-y-auto p-4 md:p-6 space-y-6 relative"
+          className="flex-1 overflow-y-auto p-4 md:p-6 space-y-6"
+          style={{ overscrollBehavior: "contain" }}
         >
           {messages.length === 0 && !isStreaming ? (
             <div className="h-full flex flex-col items-center justify-center max-w-xl mx-auto text-center my-auto py-12">
               <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center shadow-lg shadow-cyan-500/20 mb-4">
                 <Sparkles className="w-6 h-6 text-white" />
               </div>
-              <h2 className="text-xl font-bold text-white mb-2">
-                NeurionForge Inference Studio
-              </h2>
+              <h2 className="text-xl font-bold text-white mb-2">NeurionForge Inference Studio</h2>
               <p className="text-sm text-slate-400 mb-8 max-w-md">
                 100% local quantized inference running directly on your CPU with sub-500ms TTFT. Pick a prompt below or type your own.
               </p>
-
-              {/* Starter Suggestions */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 w-full text-left">
                 {SUGGESTED_PROMPTS.map((prompt, idx) => (
                   <button
                     key={idx}
                     onClick={() => handleSendMessage(prompt)}
-                    className="p-3 rounded-xl bg-slate-900/80 border border-slate-800 hover:border-cyan-500/50 hover:bg-slate-850 text-xs text-slate-300 hover:text-white transition-all text-left group"
+                    className="p-3 rounded-xl bg-slate-900/80 border border-slate-800 hover:border-cyan-500/50 text-xs text-slate-300 hover:text-white transition-all text-left"
                   >
-                    <span className="text-cyan-400 font-mono text-[10px] block mb-1">
-                      Prompt 0{idx + 1}
-                    </span>
+                    <span className="text-cyan-400 font-mono text-[10px] block mb-1">Prompt 0{idx + 1}</span>
                     {prompt}
                   </button>
                 ))}
@@ -364,83 +389,50 @@ export default function ChatPage() {
               {messages.map((msg, idx) => (
                 <div
                   key={idx}
-                  className={`flex space-x-3.5 max-w-4xl mx-auto ${
-                    msg.role === "user" ? "justify-end" : "justify-start"
-                  }`}
+                  className={`flex space-x-3.5 max-w-4xl mx-auto ${msg.role === "user" ? "justify-end" : "justify-start"}`}
                 >
                   {msg.role === "assistant" && (
                     <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center shrink-0 shadow-md shadow-cyan-500/10 mt-1">
                       <Sparkles className="w-4 h-4 text-white" />
                     </div>
                   )}
-
-                  <div
-                    className={`flex flex-col group relative max-w-[85%] sm:max-w-[78%] ${
+                  <div className={`flex flex-col group relative max-w-[85%] sm:max-w-[78%] ${msg.role === "user" ? "items-end" : "items-start"}`}>
+                    <div className={`rounded-2xl px-4 py-3 text-sm leading-relaxed ${
                       msg.role === "user"
-                        ? "items-end"
-                        : "items-start"
-                    }`}
-                  >
-                    {/* Message Bubble */}
-                    <div
-                      className={`rounded-2xl px-4 py-3 text-sm leading-relaxed ${
-                        msg.role === "user"
-                          ? "bg-gradient-to-r from-cyan-600 to-blue-600 text-white rounded-br-none shadow-md shadow-cyan-600/10"
-                          : "bg-[#111726] border border-slate-800 text-slate-200 rounded-bl-none shadow-sm"
-                      }`}
-                    >
+                        ? "bg-gradient-to-r from-cyan-600 to-blue-600 text-white rounded-br-none shadow-md shadow-cyan-600/10"
+                        : "bg-[#111726] border border-slate-800 text-slate-200 rounded-bl-none shadow-sm"
+                    }`}>
                       {msg.role === "user" ? (
                         <div className="whitespace-pre-wrap">{msg.content}</div>
                       ) : (
                         <div className="prose prose-invert prose-sm max-w-none">
-                          <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                            {msg.content}
-                          </ReactMarkdown>
+                          <ReactMarkdown remarkPlugins={[remarkGfm]}>{msg.content}</ReactMarkdown>
                         </div>
                       )}
                     </div>
-
-                    {/* Assistant Telemetry HUD */}
                     {msg.role === "assistant" && (
                       <div className="flex items-center space-x-3 mt-1.5 px-1 text-[11px] text-slate-500 font-mono">
                         {msg.stats && (
                           <>
-                            <span className="flex items-center gap-1 text-cyan-400/90">
-                              <Zap className="w-3 h-3" />
-                              {msg.stats.tokens_per_sec} tok/s
-                            </span>
+                            <span className="flex items-center gap-1 text-cyan-400/90"><Zap className="w-3 h-3" />{msg.stats.tokens_per_sec} tok/s</span>
                             <span>•</span>
-                            <span className="flex items-center gap-1 text-slate-400">
-                              <Clock className="w-3 h-3" />
-                              {msg.stats.ttft_ms}ms TTFT
-                            </span>
+                            <span className="flex items-center gap-1 text-slate-400"><Clock className="w-3 h-3" />{msg.stats.ttft_ms}ms TTFT</span>
                             <span>•</span>
-                            <span className="flex items-center gap-1 text-slate-400">
-                              <Hash className="w-3 h-3" />
-                              {msg.stats.total_tokens} toks
-                            </span>
+                            <span className="flex items-center gap-1 text-slate-400"><Hash className="w-3 h-3" />{msg.stats.total_tokens} toks</span>
                             <span>•</span>
-                            <span className="flex items-center gap-1 text-slate-400">
-                              <Timer className="w-3 h-3" />
-                              {msg.stats.total_duration_sec}s
-                            </span>
+                            <span className="flex items-center gap-1 text-slate-400"><Timer className="w-3 h-3" />{msg.stats.total_duration_sec}s</span>
                           </>
                         )}
                         <button
                           onClick={() => handleCopy(msg.content, idx)}
                           className="opacity-0 group-hover:opacity-100 transition-opacity ml-auto text-slate-400 hover:text-slate-200 flex items-center gap-1"
                         >
-                          {copiedIndex === idx ? (
-                            <Check className="w-3 h-3 text-emerald-400" />
-                          ) : (
-                            <Copy className="w-3 h-3" />
-                          )}
+                          {copiedIndex === idx ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
                           <span>{copiedIndex === idx ? "Copied" : "Copy"}</span>
                         </button>
                       </div>
                     )}
                   </div>
-
                   {msg.role === "user" && (
                     <div className="w-8 h-8 rounded-lg bg-slate-800 border border-slate-700 flex items-center justify-center shrink-0 mt-1">
                       <User className="w-4 h-4 text-slate-300" />
@@ -449,7 +441,7 @@ export default function ChatPage() {
                 </div>
               ))}
 
-              {/* Streaming Live Response Chunk */}
+              {/* Live Streaming Bubble */}
               {isStreaming && (
                 <div className="flex space-x-3.5 max-w-4xl mx-auto justify-start">
                   <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center shrink-0 shadow-md shadow-cyan-500/10 mt-1 animate-pulse">
@@ -458,9 +450,7 @@ export default function ChatPage() {
                   <div className="flex flex-col items-start max-w-[85%] sm:max-w-[78%]">
                     <div className="rounded-2xl rounded-bl-none px-4 py-3 text-sm leading-relaxed bg-[#111726] border border-cyan-500/30 text-slate-200 shadow-sm">
                       <div className="prose prose-invert prose-sm max-w-none">
-                        <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                          {streamedContent || "Thinking..."}
-                        </ReactMarkdown>
+                        <ReactMarkdown remarkPlugins={[remarkGfm]}>{streamedContent || "Thinking..."}</ReactMarkdown>
                         <span className="animate-cursor" />
                       </div>
                     </div>
@@ -476,7 +466,6 @@ export default function ChatPage() {
                 </div>
               )}
 
-              {/* Streaming Error Message */}
               {streamError && (
                 <div className="max-w-4xl mx-auto p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs flex items-center space-x-2">
                   <AlertCircle className="w-4 h-4 shrink-0" />
@@ -487,30 +476,29 @@ export default function ChatPage() {
           )}
         </div>
 
-        {/* Floating Scroll-to-Top and Scroll-to-Bottom Quick Navigation Controls */}
-        <div className="absolute right-6 bottom-24 z-20 flex flex-col space-y-2">
-          {showScrollTop && (
+        {/* Floating Scroll Navigation Buttons */}
+        <div className="absolute right-5 bottom-[88px] z-20 flex flex-col items-end gap-2 pointer-events-none">
+          {showScrollToTop && (
             <button
               onClick={scrollToTop}
-              className="p-2.5 rounded-full bg-slate-800/90 hover:bg-slate-750 border border-slate-700 text-slate-300 hover:text-white shadow-lg backdrop-blur transition-all hover:scale-105"
-              title="Scroll to Top"
+              className="pointer-events-auto p-2.5 rounded-full bg-slate-800/95 hover:bg-slate-700 border border-slate-700 text-slate-300 hover:text-white shadow-xl backdrop-blur-sm transition-all hover:scale-110"
+              title="Scroll to top"
             >
               <ArrowUp className="w-4 h-4" />
             </button>
           )}
-
-          {!isAtBottom && (
+          {showScrollToBottom && (
             <button
-              onClick={scrollToBottom}
-              className={`flex items-center space-x-1.5 px-3 py-2 rounded-full border shadow-xl backdrop-blur transition-all hover:scale-105 ${
+              onClick={smoothScrollToBottom}
+              className={`pointer-events-auto flex items-center gap-2 pl-3 pr-4 py-2.5 rounded-full border shadow-xl backdrop-blur-sm transition-all hover:scale-105 ${
                 isStreaming
-                  ? "bg-cyan-950/90 border-cyan-500/50 text-cyan-300 animate-bounce"
-                  : "bg-slate-800/90 border-slate-700 text-slate-200 hover:bg-slate-750"
+                  ? "bg-cyan-900/95 border-cyan-500/60 text-cyan-200 hover:bg-cyan-800/95"
+                  : "bg-slate-800/95 hover:bg-slate-700 border-slate-700 text-slate-200"
               }`}
-              title="Scroll to Bottom"
+              title="Scroll to bottom"
             >
-              <ArrowDown className="w-4 h-4" />
-              {isStreaming && <span className="text-xs font-semibold">Generating...</span>}
+              <ArrowDown className="w-4 h-4 shrink-0" />
+              {isStreaming && <span className="text-xs font-semibold whitespace-nowrap">Jump to latest</span>}
             </button>
           )}
         </div>
@@ -529,7 +517,6 @@ export default function ChatPage() {
                 disabled={isStreaming}
                 className="w-full resize-none bg-transparent px-3 py-1.5 text-sm text-slate-100 placeholder-slate-500 focus:outline-none max-h-36 min-h-[40px]"
               />
-
               <div className="flex items-center space-x-2 pl-2">
                 {isStreaming ? (
                   <button
@@ -550,14 +537,11 @@ export default function ChatPage() {
                 )}
               </div>
             </div>
-
             <div className="flex items-center justify-between px-2 pt-2 text-[11px] text-slate-500">
-              <div className="flex items-center space-x-2">
-                <span>Press <strong className="text-slate-400">Enter</strong> to send, <strong className="text-slate-400">Shift+Enter</strong> for newline</span>
-              </div>
-              <div className="font-mono">
+              <span>Press <strong className="text-slate-400">Enter</strong> to send, <strong className="text-slate-400">Shift+Enter</strong> for newline</span>
+              <span className="font-mono">
                 {activeModel ? `${activeModel.name} (${activeModel.quantization})` : "No Model Loaded"}
-              </div>
+              </span>
             </div>
           </div>
         </div>
@@ -571,19 +555,11 @@ export default function ChatPage() {
               <Sliders className="w-4 h-4 text-cyan-400" />
               Inference Parameters
             </h3>
-            <button
-              onClick={() => setShowSettings(false)}
-              className="text-xs text-slate-400 hover:text-white"
-            >
-              Close
-            </button>
+            <button onClick={() => setShowSettings(false)} className="text-xs text-slate-400 hover:text-white">Close</button>
           </div>
 
-          {/* System Prompt Preset Picker */}
           <div className="space-y-2">
-            <label className="text-xs font-semibold text-slate-300">
-              System Prompt Persona
-            </label>
+            <label className="text-xs font-semibold text-slate-300">System Prompt Persona</label>
             <div className="grid grid-cols-2 gap-1.5">
               {SYSTEM_PROMPT_PRESETS.map((preset, idx) => (
                 <button
@@ -607,85 +583,48 @@ export default function ChatPage() {
             />
           </div>
 
-          {/* Temperature */}
           <div className="space-y-2">
             <div className="flex justify-between text-xs">
               <span className="font-semibold text-slate-300">Temperature</span>
               <span className="font-mono text-cyan-400">{temperature}</span>
             </div>
-            <input
-              type="range"
-              min="0.0"
-              max="1.5"
-              step="0.05"
-              value={temperature}
+            <input type="range" min="0.0" max="1.5" step="0.05" value={temperature}
               onChange={(e) => setTemperature(parseFloat(e.target.value))}
-              className="w-full accent-cyan-400 bg-slate-800"
-            />
-            <p className="text-[11px] text-slate-500">
-              Higher values increase creativity; lower values make output more deterministic.
-            </p>
+              className="w-full accent-cyan-400 bg-slate-800" />
+            <p className="text-[11px] text-slate-500">Higher values increase creativity; lower values make output more deterministic.</p>
           </div>
 
-          {/* Top-P */}
           <div className="space-y-2">
             <div className="flex justify-between text-xs">
               <span className="font-semibold text-slate-300">Top-P (Nucleus)</span>
               <span className="font-mono text-cyan-400">{topP}</span>
             </div>
-            <input
-              type="range"
-              min="0.1"
-              max="1.0"
-              step="0.05"
-              value={topP}
+            <input type="range" min="0.1" max="1.0" step="0.05" value={topP}
               onChange={(e) => setTopP(parseFloat(e.target.value))}
-              className="w-full accent-cyan-400 bg-slate-800"
-            />
-            <p className="text-[11px] text-slate-500">
-              Limits token pool to cumulative probability mass.
-            </p>
+              className="w-full accent-cyan-400 bg-slate-800" />
+            <p className="text-[11px] text-slate-500">Limits token pool to cumulative probability mass.</p>
           </div>
 
-          {/* Max Tokens */}
           <div className="space-y-2">
             <div className="flex justify-between text-xs">
               <span className="font-semibold text-slate-300">Max Generation Tokens</span>
               <span className="font-mono text-cyan-400">{maxTokens}</span>
             </div>
-            <input
-              type="range"
-              min="64"
-              max="2048"
-              step="64"
-              value={maxTokens}
+            <input type="range" min="64" max="2048" step="64" value={maxTokens}
               onChange={(e) => setMaxTokens(parseInt(e.target.value))}
-              className="w-full accent-cyan-400 bg-slate-800"
-            />
-            <p className="text-[11px] text-slate-500">
-              Maximum tokens generated in a single response.
-            </p>
+              className="w-full accent-cyan-400 bg-slate-800" />
+            <p className="text-[11px] text-slate-500">Maximum tokens generated in a single response.</p>
           </div>
 
-          {/* Model Memory Diagnostics */}
           <div className="p-3 rounded-xl bg-slate-900 border border-slate-800 space-y-2 mt-auto">
             <div className="text-xs font-semibold text-slate-300 flex items-center gap-1.5">
               <Cpu className="w-3.5 h-3.5 text-cyan-400" />
               Runtime Execution
             </div>
             <div className="text-[11px] text-slate-400 space-y-1 font-mono">
-              <div className="flex justify-between">
-                <span>Engine:</span>
-                <span className="text-slate-200">llama.cpp CPU</span>
-              </div>
-              <div className="flex justify-between">
-                <span>Prompt Caching:</span>
-                <span className="text-emerald-400">KV Enabled</span>
-              </div>
-              <div className="flex justify-between">
-                <span>Quantization:</span>
-                <span className="text-cyan-400">{activeModel?.quantization || "Q4_K_M"}</span>
-              </div>
+              <div className="flex justify-between"><span>Engine:</span><span className="text-slate-200">llama.cpp CPU</span></div>
+              <div className="flex justify-between"><span>Prompt Caching:</span><span className="text-emerald-400">KV Enabled</span></div>
+              <div className="flex justify-between"><span>Quantization:</span><span className="text-cyan-400">{activeModel?.quantization || "Q4_K_M"}</span></div>
             </div>
           </div>
         </div>
