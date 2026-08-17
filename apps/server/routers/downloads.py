@@ -12,6 +12,7 @@ router = APIRouter(prefix="/downloads", tags=["downloads"])
 class StartDownloadPayload(BaseModel):
     repo_id: str
     filename: str
+    rfilename: Optional[str] = None
 
 @router.post("/start")
 async def start_download(payload: StartDownloadPayload):
@@ -19,7 +20,8 @@ async def start_download(payload: StartDownloadPayload):
     try:
         job_id = await download_service.enqueue_download(
             repo_id=payload.repo_id,
-            filename=payload.filename
+            filename=payload.filename,
+            rfilename=payload.rfilename
         )
         return {
             "job_id": job_id,
@@ -61,7 +63,7 @@ async def websocket_download_progress(websocket: WebSocket, job_id: str):
             state_data = await queue.get()
             await websocket.send_text(json.dumps(state_data))
 
-            # If job reached terminal state, send and disconnect
+            # If job reached terminal state, stay open for final chunk then end
             if state_data.get("status") in ["done", "failed", "cancelled"]:
                 break
     except WebSocketDisconnect:

@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Optional, Dict, Any, List
 from dotenv import load_dotenv
 
-from db import upsert_model, list_models, set_model_loaded, get_model
+from db import upsert_model, list_models, set_model_loaded, get_model, delete_model_record
 
 # Load environment
 dotenv_path = Path(__file__).resolve().parent.parent / ".env"
@@ -58,6 +58,7 @@ class ModelService:
                 size_gb = round(file_size_bytes / (1024 ** 3), 2)
                 quant = parse_quantization(file_path.name)
                 name = format_model_name(file_path.name)
+                is_mmproj = "mmproj" in file_path.name.lower()
 
                 model_id = file_path.name.lower()
                 is_currently_active = (model_id == self.active_model_id and self.loaded_model is not None)
@@ -71,16 +72,25 @@ class ModelService:
                     "quantization": quant,
                     "context_length": 4096,
                     "loaded": is_currently_active,
-                    "gpu_layers": 0
+                    "gpu_layers": 0,
+                    "is_mmproj": is_mmproj
                 }
                 await upsert_model(model_data)
                 models_found.append(model_data)
 
         # Retrieve full list from DB
         db_models = await list_models()
+        valid_models = []
         for m in db_models:
-            m["loaded"] = bool(m["id"] == self.active_model_id and self.loaded_model is not None)
-        return db_models
+            # Check if file still exists on disk
+            if Path(m["path"]).exists():
+                m["loaded"] = bool(m["id"] == self.active_model_id and self.loaded_model is not None)
+                m["is_mmproj"] = bool("mmproj" in m["filename"].lower())
+                valid_models.append(m)
+            else:
+                await delete_model_record(m["id"])
+
+        return valid_models
 
     async def load_model(self, model_id: str, n_ctx: int = 4096, n_threads: Optional[int] = None) -> Dict[str, Any]:
         """Load a GGUF model into memory using llama-cpp-python"""
@@ -104,6 +114,13 @@ class ModelService:
             if not model_file.exists():
                 raise FileNotFoundError(f"Model file not found: {model_file}")
 
+            # Check if user tried to load an mmproj vision projector as a standalone LLM
+            if "mmproj" in model_file.name.lower():
+                raise ValueError(
+                    f"'{model_file.name}' is a Multimodal Vision Projector (mmproj), not a standalone language model. "
+                    f"Please load a full LLM weight file (e.g. Q4_K_M, Q5_K_M, Q8_0)."
+                )
+
             # Unload any current model first
             if self.loaded_model is not None:
                 del self.loaded_model
@@ -117,14 +134,17 @@ class ModelService:
             start_time = time.perf_counter()
 
             def _load():
-                from llama_cpp import Llama
-                return Llama(
-                    model_path=str(model_file),
-                    n_ctx=n_ctx,
-                    n_threads=cpu_threads,
-                    n_gpu_layers=0,  # CPU only
-                    verbose=False
-                )
+                try:
+                    from llama_cpp import Llama
+                    return Llama(
+                        model_path=str(model_file),
+                        n_ctx=n_ctx,
+                        n_threads=cpu_threads,
+                        n_gpu_layers=0,  # CPU only
+                        verbose=False
+                    )
+                except Exception as ex:
+                    raise RuntimeError(f"llama.cpp initialization failed for '{model_file.name}': {str(ex)}")
 
             loop = asyncio.get_running_loop()
             self.loaded_model = await loop.run_in_executor(None, _load)
@@ -163,5 +183,30 @@ class ModelService:
                 "load_time_sec": 0.0,
                 "message": "Model unloaded successfully"
             }
+
+    async def delete_model(self, model_id: str) -> Dict[str, Any]:
+        """Delete model weight file from disk and database"""
+        async with self.load_lock:
+            # If active, unload first
+            if self.active_model_id == model_id:
+                await self.unload_model(model_id)
+
+            model_record = await get_model(model_id)
+            if model_record and Path(model_record["path"]).exists():
+                try:
+                    Path(model_record["path"]).unlink()
+                except Exception as e:
+                    print(f"[ERROR] Failed to delete file {model_record['path']}: {e}")
+
+            # Also check directly in MODELS_DIR
+            direct_file = Path(MODELS_DIR) / model_id
+            if direct_file.exists():
+                try:
+                    direct_file.unlink()
+                except Exception:
+                    pass
+
+            await delete_model_record(model_id)
+            return {"id": model_id, "deleted": True, "message": "Model file deleted successfully"}
 
 model_service = ModelService()

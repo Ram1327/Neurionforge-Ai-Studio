@@ -2,13 +2,13 @@ import os
 import re
 from pathlib import Path
 from typing import List, Dict, Any, Optional
-from huggingface_hub import HfApi
+from huggingface_hub import HfApi, hf_hub_url
 from services.model_service import parse_quantization, MODELS_DIR
 
 api = HfApi()
 
 class HubService:
-    def search_models(self, query: str = "", limit: int = 20) -> List[Dict[str, Any]]:
+    def search_models(self, query: str = "", limit: int = 24) -> List[Dict[str, Any]]:
         """Search HuggingFace Hub for GGUF models, sorted by popularity"""
         try:
             search_query = query.strip() if query else None
@@ -58,19 +58,27 @@ class HubService:
                 size_gb = round(size_bytes / (1024 ** 3), 2) if size_bytes else 0.0
                 quant = parse_quantization(rfilename)
                 
+                base_filename = Path(rfilename).name
+                is_mmproj = "mmproj" in base_filename.lower()
+
                 # Check if file already exists in D:/models
-                local_file = models_path / Path(rfilename).name
+                local_file = models_path / base_filename
                 already_downloaded = local_file.exists() and local_file.stat().st_size > 0
 
-                download_url = f"https://huggingface.co/{repo_id}/resolve/main/{rfilename}"
+                try:
+                    download_url = hf_hub_url(repo_id, rfilename)
+                except Exception:
+                    download_url = f"https://huggingface.co/{repo_id}/resolve/main/{rfilename}"
 
                 files.append({
-                    "filename": Path(rfilename).name,
+                    "filename": base_filename,
+                    "rfilename": rfilename,
                     "repo_id": repo_id,
                     "size_gb": size_gb,
                     "size_bytes": size_bytes,
                     "quantization": quant,
                     "already_downloaded": already_downloaded,
+                    "is_mmproj": is_mmproj,
                     "url": download_url
                 })
 

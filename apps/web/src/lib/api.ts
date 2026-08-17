@@ -1,6 +1,7 @@
 import {
   ModelInfo,
   ModelLoadResponse,
+  ModelDeleteResponse,
   SystemStatus,
   HubModelResult,
   GGUFFileInfo,
@@ -57,18 +58,20 @@ export const api = {
     const endpoint = modelId ? `/models/${encodeURIComponent(modelId)}/unload` : "/models/unload";
     return fetchJson<ModelLoadResponse>(endpoint, { method: "POST" });
   },
+  deleteModel: (modelId: string): Promise<ModelDeleteResponse> =>
+    fetchJson<ModelDeleteResponse>(`/models/${encodeURIComponent(modelId)}`, { method: "DELETE" }),
 
   // HuggingFace Hub & Downloads (Phase 1.1)
-  searchHub: (q: string = "", limit: number = 20): Promise<HubModelResult[]> =>
+  searchHub: (q: string = "", limit: number = 24): Promise<HubModelResult[]> =>
     fetchJson<HubModelResult[]>(`/hub/search?q=${encodeURIComponent(q)}&limit=${limit}`),
 
   listHubFiles: (repoId: string): Promise<GGUFFileInfo[]> =>
     fetchJson<GGUFFileInfo[]>(`/hub/files?repo_id=${encodeURIComponent(repoId)}`),
 
-  startDownload: (repoId: string, filename: string): Promise<StartDownloadResponse> =>
+  startDownload: (repoId: string, filename: string, rfilename?: string): Promise<StartDownloadResponse> =>
     fetchJson<StartDownloadResponse>("/downloads/start", {
       method: "POST",
-      body: JSON.stringify({ repo_id: repoId, filename }),
+      body: JSON.stringify({ repo_id: repoId, filename, rfilename }),
     }),
 
   getDownloads: (): Promise<DownloadJob[]> => fetchJson<DownloadJob[]>("/downloads"),

@@ -16,7 +16,10 @@ export function useDownloads(onDownloadCompleted?: () => void) {
   const fetchJobs = useCallback(async () => {
     try {
       const allJobs = await api.getDownloads();
-      setJobs(allJobs);
+      setJobs((prev) => {
+        // preserve local dismissed states or combine
+        return allJobs;
+      });
       const running = allJobs.find((j) => j.status === "running" || j.status === "queued");
       if (running && running.job_id !== activeJobId) {
         setActiveJobId(running.job_id);
@@ -88,10 +91,10 @@ export function useDownloads(onDownloadCompleted?: () => void) {
     };
   }, [activeJobId]);
 
-  const startDownload = async (repoId: string, filename: string) => {
+  const startDownload = async (repoId: string, filename: string, rfilename?: string) => {
     setError(null);
     try {
-      const res = await api.startDownload(repoId, filename);
+      const res = await api.startDownload(repoId, filename, rfilename);
       setActiveJobId(res.job_id);
       await fetchJobs();
       return res.job_id;
@@ -114,12 +117,17 @@ export function useDownloads(onDownloadCompleted?: () => void) {
     }
   };
 
+  const dismissJob = (jobId: string) => {
+    setJobs((prev) => prev.filter((j) => j.job_id !== jobId));
+  };
+
   return {
     jobs,
     activeJobId,
     error,
     startDownload,
     cancelDownload,
+    dismissJob,
     refreshJobs: fetchJobs,
   };
 }

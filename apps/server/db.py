@@ -111,6 +111,11 @@ async def set_model_loaded(model_id: str, loaded: bool):
             await db.execute("UPDATE models SET loaded = 0 WHERE id = ?", (model_id,))
         await db.commit()
 
+async def delete_model_record(model_id: str):
+    async with aiosqlite.connect(str(DB_PATH)) as db:
+        await db.execute("DELETE FROM models WHERE id = ?", (model_id,))
+        await db.commit()
+
 # --- Download Job Operations ---
 
 async def create_download_job(job_data: Dict[str, Any]):

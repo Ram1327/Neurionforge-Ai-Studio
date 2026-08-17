@@ -63,6 +63,7 @@ export interface ModelInfo {
   context_length: number;
   loaded: boolean;
   gpu_layers?: number;
+  is_mmproj?: boolean;
   last_used_at?: string;
 }
 
@@ -70,6 +71,12 @@ export interface ModelLoadResponse {
   id: string;
   loaded: boolean;
   load_time_sec: number;
+  message?: string;
+}
+
+export interface ModelDeleteResponse {
+  id: string;
+  deleted: boolean;
   message?: string;
 }
 
@@ -90,10 +97,12 @@ export interface HubModelResult {
 
 export interface GGUFFileInfo {
   filename: string;
+  rfilename: string;
   repo_id: string;
   size_gb: number;
   quantization: string;
   already_downloaded: boolean;
+  is_mmproj?: boolean;
   url: string;
 }
 
@@ -103,6 +112,7 @@ export interface DownloadJob {
   job_id: string;
   repo_id: string;
   filename: string;
+  rfilename?: string;
   status: DownloadStatus;
   bytes_downloaded: number;
   total_bytes: number;
@@ -117,6 +127,7 @@ export interface DownloadJob {
 export interface StartDownloadRequest {
   repo_id: string;
   filename: string;
+  rfilename?: string;
 }
 
 export interface StartDownloadResponse {

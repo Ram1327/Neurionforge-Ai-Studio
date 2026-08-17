@@ -11,6 +11,7 @@ export function useModels() {
   const [isServerOnline, setIsServerOnline] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [loadingModelId, setLoadingModelId] = useState<string | null>(null);
+  const [deletingModelId, setDeletingModelId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const fetchStatusAndModels = useCallback(async () => {
@@ -73,6 +74,21 @@ export function useModels() {
     }
   };
 
+  const deleteModel = async (modelId: string) => {
+    setDeletingModelId(modelId);
+    setError(null);
+    try {
+      await api.deleteModel(modelId);
+      await fetchStatusAndModels();
+      return true;
+    } catch (err: any) {
+      setError(err.message || `Failed to delete model ${modelId}`);
+      return false;
+    } finally {
+      setDeletingModelId(null);
+    }
+  };
+
   const rescan = async () => {
     setIsLoading(true);
     setError(null);
@@ -95,9 +111,11 @@ export function useModels() {
     isServerOnline,
     isLoading,
     loadingModelId,
+    deletingModelId,
     error,
     loadModel,
     unloadModel,
+    deleteModel,
     rescan,
     refresh: fetchStatusAndModels,
   };

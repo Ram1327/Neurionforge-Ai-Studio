@@ -20,8 +20,8 @@ async def load_model(model_id: str):
     try:
         res = await model_service.load_model(model_id)
         return res
-    except FileNotFoundError as e:
-        raise HTTPException(status_code=404, detail=str(e))
+    except (FileNotFoundError, ValueError) as e:
+        raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to load model: {str(e)}")
 
@@ -40,3 +40,11 @@ async def unload_active_model():
         return await model_service.unload_model()
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to unload model: {str(e)}")
+
+@router.delete("/{model_id}")
+async def delete_model(model_id: str):
+    """Delete a model file from disk and database"""
+    try:
+        return await model_service.delete_model(model_id)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to delete model: {str(e)}")
