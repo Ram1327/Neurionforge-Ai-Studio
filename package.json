@@ -1,0 +1,11 @@
+{
+  "name": "ai-studio-monorepo",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "pnpm --filter web dev",
+    "build": "pnpm --filter @neurionforge/shared-types typecheck && pnpm --filter web build",
+    "start": "pnpm --filter web start",
+    "typecheck": "pnpm -r typecheck"
+  }
+}

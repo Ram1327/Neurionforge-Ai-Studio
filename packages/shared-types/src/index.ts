@@ -1,0 +1,123 @@
+/**
+ * @neurionforge/shared-types
+ * API contract and shared data models for NeurionForge AI Studio
+ */
+
+// -----------------------------------------------------------------------------
+// Inference Types
+// -----------------------------------------------------------------------------
+
+export type MessageRole = 'system' | 'user' | 'assistant';
+
+export interface ChatMessage {
+  role: MessageRole;
+  content: string;
+}
+
+export interface InferenceRequest {
+  model_id: string;
+  messages: ChatMessage[];
+  temperature?: number;
+  top_p?: number;
+  max_tokens?: number;
+  system_prompt?: string;
+}
+
+export interface InferenceStats {
+  tokens_per_sec: number;
+  ttft_ms: number;
+  total_tokens: number;
+  total_duration_sec: number;
+}
+
+export interface InferenceTokenChunk {
+  token: string;
+  finished: boolean;
+  stats?: InferenceStats;
+  error?: string;
+}
+
+// -----------------------------------------------------------------------------
+// Model Metadata Types
+// -----------------------------------------------------------------------------
+
+export interface ModelInfo {
+  id: string;
+  name: string;
+  filename: string;
+  path: string;
+  size_gb: number;
+  quantization: string;
+  context_length: number;
+  loaded: boolean;
+  gpu_layers?: number;
+}
+
+export interface ModelLoadResponse {
+  id: string;
+  loaded: boolean;
+  load_time_sec: number;
+}
+
+// -----------------------------------------------------------------------------
+// Fine-Tuning & Adapter Types
+// -----------------------------------------------------------------------------
+
+export type JobStatus = 'queued' | 'running' | 'completed' | 'failed';
+
+export interface TrainRequest {
+  base_model_id: string;
+  dataset_id: string;
+  adapter_name: string;
+  lora_rank: number;
+  lora_alpha: number;
+  learning_rate: number;
+  epochs: number;
+  batch_size: number;
+}
+
+export interface TrainJob {
+  job_id: string;
+  status: JobStatus;
+  base_model_id: string;
+  dataset_id: string;
+  adapter_name: string;
+  current_step: number;
+  total_steps: number;
+  current_loss?: number;
+  created_at: string;
+  completed_at?: string;
+  error?: string;
+}
+
+export interface TrainLogMessage {
+  job_id: string;
+  step: number;
+  total_steps: number;
+  loss: number;
+  epoch: number;
+  elapsed_sec: number;
+  status: JobStatus;
+  message?: string;
+}
+
+export interface AdapterInfo {
+  id: string;
+  name: string;
+  base_model_id: string;
+  path: string;
+  created_at: string;
+  size_mb: number;
+}
+
+// -----------------------------------------------------------------------------
+// Health & System Types
+// -----------------------------------------------------------------------------
+
+export interface SystemStatus {
+  status: 'ok' | 'degraded' | 'error';
+  models_dir: string;
+  active_model?: string;
+  cpu_threads: number;
+  gpu_available: boolean;
+}

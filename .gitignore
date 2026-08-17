@@ -1,0 +1,41 @@
+# Node / Next.js
+node_modules/
+.next/
+out/
+build/
+dist/
+.pnpm-store/
+
+# Environment files
+.env
+.env.local
+.env*.local
+!.env.example
+
+# Python
+.venv/
+venv/
+ENV/
+__pycache__/
+*.py[cod]
+*$py.class
+*.log
+
+# Machine Learning weights & checkpoints
+models/
+apps/server/models/
+adapters/
+apps/server/adapters/
+temp_checkpoints/
+apps/server/temp_checkpoints/
+*.gguf
+*.bin
+*.safetensors
+*.pt
+*.pth
+
+# OS & IDE
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
