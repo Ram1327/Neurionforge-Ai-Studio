@@ -25,25 +25,27 @@ clear starting point.
 
 ## What's deployed / live
 
-- Pending Vercel project connection and deployment to `aistudio.neurionforge.com`.
+- **Vercel Production Deployment:** ✅ Live and deploying automatically from `main` on [Ram1327/Neurionforge-Ai-Studio](https://github.com/Ram1327/Neurionforge-Ai-Studio.git).
+- **Subdomain:** Ready to map `aistudio.neurionforge.com` in Vercel project domain settings.
 
 ## What's in progress right now
 
-- Pushing Phase 0 codebase to GitHub repository `https://github.com/Ram1327/Neurionforge-Ai-Studio.git` for Vercel deployment.
+- Phase 0 verification and deployment completed. Ready for Phase 1 (Inference Studio — WebSocket streaming chat, model manager UI, and controls).
 
 ## Known-working vs known-broken
 
 - `pnpm install` — ✅ working (pnpm v11)
-- `pnpm build` — ✅ passing with 0 errors (shared-types typecheck + Next.js build)
-- `python scripts/test_inference.py` — ✅ passing (streamed token output on CPU)
+- `pnpm build` — ✅ passing with 0 errors (shared-types typecheck + Next.js 15 build)
+- `python scripts/test_inference.py` — ✅ passing (streamed token output on CPU, 22.74 tps)
+- Vercel Deployment — ✅ production build completed and outputs deployed
 
 ## Environment / accounts set up so far
 
 - [x] GitHub repo created → https://github.com/Ram1327/Neurionforge-Ai-Studio.git
 - [x] Global model path configured at `D:/models`
 - [x] Python venv and requirements installed (`torch`, `transformers`, `peft`, `llama-cpp-python`)
-- [ ] Vercel project connected to repository
-- [ ] Domain `aistudio.neurionforge.com` mapped in Vercel
+- [x] Vercel project connected to repository and live
+- [ ] Custom domain `aistudio.neurionforge.com` mapped in Vercel
 
 ## Notes for the next agent picking this up
 

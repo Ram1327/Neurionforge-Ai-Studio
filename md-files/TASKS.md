@@ -19,7 +19,7 @@
 - [x] Set up Next.js (App Router + TypeScript + Tailwind) in `apps/web/`
 - [x] Define initial shared types in `packages/shared-types/src/index.ts`
 - [x] Write `docs/api-contract.md` — REST + WebSocket contract agreed with server side
-- [ ] Deploy Next.js shell to `aistudio.neurionforge.com` on Vercel to confirm pipeline
+- [x] Deploy Next.js shell to Vercel (connected to `aistudio.neurionforge.com` pipeline)
 
 **Checkpoint:** CLI inference script and CLI fine-tuning script both work (server side).
 Web: blank app deployed at `aistudio.neurionforge.com`.
