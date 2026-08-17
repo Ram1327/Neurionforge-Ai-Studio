@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "pnpm --filter web dev",
+    "dev:server": "powershell -ExecutionPolicy Bypass -File ./apps/server/start.ps1",
     "build": "pnpm --filter @neurionforge/shared-types typecheck && pnpm --filter web build",
     "start": "pnpm --filter web start",
     "typecheck": "pnpm -r typecheck"

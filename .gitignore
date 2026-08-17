@@ -5,6 +5,13 @@ out/
 build/
 dist/
 .pnpm-store/
+*.tsbuildinfo
+
+# SQLite DBs
+*.db
+*.sqlite
+*.sqlite3
+apps/server/data/*.db
 
 # Environment files
 .env

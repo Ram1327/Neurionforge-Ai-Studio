@@ -3,8 +3,10 @@
 @tailwind utilities;
 
 :root {
-  --background: #090a0f;
-  --foreground: #f0f3f8;
+  --background: #0b0f19;
+  --foreground: #f1f5f9;
+  --card-bg: #111827;
+  --card-border: #1e293b;
 }
 
 body {
@@ -12,4 +14,60 @@ body {
   background: var(--background);
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #1e293b;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #334155;
+}
+
+/* Blinking cursor for streaming tokens */
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
+.animate-cursor {
+  display: inline-block;
+  width: 7px;
+  height: 15px;
+  margin-left: 3px;
+  vertical-align: -2px;
+  background-color: #38bdf8;
+  animation: blink 0.8s infinite;
+}
+
+/* Code styling inside Markdown */
+pre {
+  background-color: #0d1117 !important;
+  border: 1px solid #1f293d;
+  border-radius: 0.5rem;
+  padding: 1rem;
+  overflow-x: auto;
+  margin: 0.75rem 0;
+}
+
+code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-size: 0.875rem;
+}
+
+:not(pre) > code {
+  background-color: #1e293b;
+  color: #38bdf8;
+  padding: 0.15rem 0.4rem;
+  border-radius: 0.25rem;
+  font-size: 0.85em;
 }

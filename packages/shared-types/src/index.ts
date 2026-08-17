@@ -12,10 +12,13 @@ export type MessageRole = 'system' | 'user' | 'assistant';
 export interface ChatMessage {
   role: MessageRole;
   content: string;
+  id?: string;
+  created_at?: string;
+  stats?: InferenceStats;
 }
 
 export interface InferenceRequest {
-  model_id: string;
+  model_id?: string;
   messages: ChatMessage[];
   temperature?: number;
   top_p?: number;
@@ -37,6 +40,15 @@ export interface InferenceTokenChunk {
   error?: string;
 }
 
+export interface ConversationSession {
+  id: string;
+  title: string;
+  created_at: string;
+  updated_at: string;
+  messages: ChatMessage[];
+  model_id?: string;
+}
+
 // -----------------------------------------------------------------------------
 // Model Metadata Types
 // -----------------------------------------------------------------------------
@@ -51,12 +63,14 @@ export interface ModelInfo {
   context_length: number;
   loaded: boolean;
   gpu_layers?: number;
+  last_used_at?: string;
 }
 
 export interface ModelLoadResponse {
   id: string;
   loaded: boolean;
   load_time_sec: number;
+  message?: string;
 }
 
 // -----------------------------------------------------------------------------
@@ -117,7 +131,10 @@ export interface AdapterInfo {
 export interface SystemStatus {
   status: 'ok' | 'degraded' | 'error';
   models_dir: string;
-  active_model?: string;
+  active_model?: string | null;
+  is_model_loaded?: boolean;
   cpu_threads: number;
   gpu_available: boolean;
+  total_ram_gb?: number;
+  available_ram_gb?: number;
 }
