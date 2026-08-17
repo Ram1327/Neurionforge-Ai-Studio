@@ -53,7 +53,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="NeurionForge AI Studio Server",
     description="Local-first LLM inference, Hub downloader, and fine-tuning engine",
-    version="0.1.1",
+    version="0.1.2",
     lifespan=lifespan
 )
 
@@ -63,6 +63,8 @@ app.add_middleware(
     allow_origins=[
         "http://localhost:3000",
         "http://127.0.0.1:3000",
+        "http://localhost:8000",
+        "http://127.0.0.1:8000",
         "https://aistudio.neurionforge.com",
         "*"
     ],
@@ -96,4 +98,10 @@ if __name__ == "__main__":
     import uvicorn
     host = os.getenv("HOST", "0.0.0.0")
     port = int(os.getenv("PORT", "8000"))
-    uvicorn.run("main:app", host=host, port=port, reload=True)
+    uvicorn.run(
+        "main:app",
+        host=host,
+        port=port,
+        reload=True,
+        reload_excludes=["data/*", "*.db", "*.db-journal", "*.part", "*.gguf", "logs/*", ".venv/*"]
+    )

@@ -9,13 +9,15 @@ import {
   StartDownloadResponse,
 } from "@neurionforge/shared-types";
 
-export const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
-export const WS_BASE = process.env.NEXT_PUBLIC_WS_URL || "ws://localhost:8000";
+export const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
+export const WS_BASE = process.env.NEXT_PUBLIC_WS_URL || "ws://127.0.0.1:8000";
+
+const FALLBACK_API_BASE = "http://localhost:8000";
 
 async function fetchJson<T>(endpoint: string, options?: RequestInit): Promise<T> {
-  const url = `${API_BASE}${endpoint}`;
+  const primaryUrl = `${API_BASE}${endpoint}`;
   try {
-    const res = await fetch(url, {
+    const res = await fetch(primaryUrl, {
       ...options,
       headers: {
         "Content-Type": "application/json",
@@ -31,14 +33,30 @@ async function fetchJson<T>(endpoint: string, options?: RequestInit): Promise<T>
           errorMsg = typeof errJson.detail === "string" ? errJson.detail : JSON.stringify(errJson.detail);
         }
       } catch {
-        // use default error message
+        // default message
       }
       throw new Error(errorMsg);
     }
 
     return (await res.json()) as T;
   } catch (err: any) {
-    if (err.name === "TypeError" && err.message.includes("fetch")) {
+    // If primary failed on network error, try localhost fallback
+    if (err.name === "TypeError" && (err.message.includes("fetch") || err.message.includes("Failed"))) {
+      try {
+        const fallbackUrl = `${FALLBACK_API_BASE}${endpoint}`;
+        const res = await fetch(fallbackUrl, {
+          ...options,
+          headers: {
+            "Content-Type": "application/json",
+            ...(options?.headers || {}),
+          },
+        });
+        if (res.ok) {
+          return (await res.json()) as T;
+        }
+      } catch {
+        // ignore fallback failure
+      }
       throw new Error("Unable to connect to NeurionForge Server. Make sure the backend is running on port 8000.");
     }
     throw err;

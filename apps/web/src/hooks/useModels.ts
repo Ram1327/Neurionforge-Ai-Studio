@@ -18,7 +18,7 @@ export function useModels() {
     try {
       const [health, modelList] = await Promise.all([
         api.getHealth().catch(() => null),
-        api.getModels().catch(() => []),
+        api.getModels().catch(() => null),
       ]);
 
       if (health) {
@@ -29,9 +29,11 @@ export function useModels() {
         setSystemStatus(null);
       }
 
-      setModels(modelList);
-      const loaded = modelList.find((m) => m.loaded);
-      setActiveModel(loaded || null);
+      if (modelList) {
+        setModels(modelList);
+        const loaded = modelList.find((m) => m.loaded);
+        setActiveModel(loaded || null);
+      }
       setError(null);
     } catch (err: any) {
       setIsServerOnline(false);
@@ -43,8 +45,17 @@ export function useModels() {
 
   useEffect(() => {
     fetchStatusAndModels();
-    const interval = setInterval(fetchStatusAndModels, 10000);
-    return () => clearInterval(interval);
+    const interval = setInterval(fetchStatusAndModels, 3500);
+
+    const onFocus = () => {
+      fetchStatusAndModels();
+    };
+    window.addEventListener("focus", onFocus);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener("focus", onFocus);
+    };
   }, [fetchStatusAndModels]);
 
   const loadModel = async (modelId: string) => {
