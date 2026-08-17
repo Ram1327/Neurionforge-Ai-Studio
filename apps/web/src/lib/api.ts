@@ -80,4 +80,9 @@ export const api = {
     fetchJson<{ job_id: string; cancelled: boolean }>(`/downloads/${encodeURIComponent(jobId)}/cancel`, {
       method: "POST",
     }),
+
+  deleteDownloadJob: (jobId: string): Promise<{ job_id: string; deleted: boolean }> =>
+    fetchJson<{ job_id: string; deleted: boolean }>(`/downloads/${encodeURIComponent(jobId)}`, {
+      method: "DELETE",
+    }),
 };

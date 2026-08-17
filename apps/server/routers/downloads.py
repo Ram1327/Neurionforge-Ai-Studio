@@ -5,7 +5,7 @@ from pydantic import BaseModel
 from typing import List, Dict, Any, Optional
 
 from services.download_service import download_service
-from db import list_download_jobs, get_download_job
+from db import list_download_jobs, get_download_job, delete_download_job_record
 
 router = APIRouter(prefix="/downloads", tags=["downloads"])
 
@@ -49,6 +49,13 @@ async def cancel_download_job(job_id: str):
     """Cancel an active or queued download job"""
     success = await download_service.cancel_download(job_id)
     return {"job_id": job_id, "cancelled": success}
+
+@router.delete("/{job_id}")
+async def delete_download_job(job_id: str):
+    """Remove a download job record from history"""
+    await download_service.cancel_download(job_id)
+    await delete_download_job_record(job_id)
+    return {"job_id": job_id, "deleted": True}
 
 @router.websocket("/ws/{job_id}")
 async def websocket_download_progress(websocket: WebSocket, job_id: str):

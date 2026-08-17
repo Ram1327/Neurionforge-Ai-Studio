@@ -14,7 +14,7 @@ import { DownloadJob } from "@neurionforge/shared-types";
 interface DownloadProgressCardProps {
   job: DownloadJob;
   onCancel: (jobId: string) => void;
-  onDismiss?: (jobId: string) => void;
+  onDismiss: (jobId: string) => void;
 }
 
 function formatEta(seconds: number | null | undefined): string {
@@ -38,16 +38,17 @@ export function DownloadProgressCard({ job, onCancel, onDismiss }: DownloadProgr
   const isDone = job.status === "done";
   const isCancelled = job.status === "cancelled";
   const isFailed = job.status === "failed";
+  const isTerminal = isDone || isCancelled || isFailed;
 
-  // Auto-dismiss completed card after 12 seconds
+  // Auto-dismiss completed, cancelled, or failed cards after 8 seconds
   useEffect(() => {
-    if (isDone && onDismiss) {
+    if (isTerminal) {
       const timer = setTimeout(() => {
         onDismiss(job.job_id);
-      }, 12000);
+      }, 8000);
       return () => clearTimeout(timer);
     }
-  }, [isDone, job.job_id, onDismiss]);
+  }, [isTerminal, job.job_id, onDismiss]);
 
   const displayPercent = isDone
     ? 100
@@ -55,7 +56,7 @@ export function DownloadProgressCard({ job, onCancel, onDismiss }: DownloadProgr
 
   return (
     <div
-      className={`rounded-2xl border p-4 shadow-xl shadow-black/50 space-y-3 transition-all ${
+      className={`rounded-2xl border p-4 shadow-2xl shadow-black/70 space-y-3 transition-all animate-in fade-in slide-in-from-bottom-2 ${
         isDone
           ? "bg-[#0c181e] border-emerald-500/40"
           : isFailed || isCancelled
@@ -119,6 +120,7 @@ export function DownloadProgressCard({ job, onCancel, onDismiss }: DownloadProgr
               : "Failed"}
           </span>
 
+          {/* Action Button: Cancel when downloading, Dismiss when finished */}
           {isRunning || isQueued ? (
             <button
               onClick={() => onCancel(job.job_id)}
@@ -129,9 +131,9 @@ export function DownloadProgressCard({ job, onCancel, onDismiss }: DownloadProgr
             </button>
           ) : (
             <button
-              onClick={() => onDismiss?.(job.job_id)}
+              onClick={() => onDismiss(job.job_id)}
               className="p-1 rounded-lg text-slate-400 hover:bg-slate-800 hover:text-slate-200 transition"
-              title="Dismiss"
+              title="Dismiss Card"
             >
               <X className="w-4 h-4" />
             </button>
@@ -184,7 +186,7 @@ export function DownloadProgressCard({ job, onCancel, onDismiss }: DownloadProgr
             )}
             {isDone && <span className="text-emerald-400 font-semibold">✓ Saved to D:/models</span>}
             {isFailed && <span className="text-rose-400 truncate max-w-xs">{job.error || "Download error"}</span>}
-            {isCancelled && <span className="text-slate-500">Download halted</span>}
+            {isCancelled && <span className="text-slate-500">Download cancelled</span>}
           </div>
         </div>
       </div>

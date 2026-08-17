@@ -149,3 +149,8 @@ async def list_download_jobs() -> List[Dict[str, Any]]:
         async with db.execute("SELECT * FROM downloads ORDER BY started_at DESC LIMIT 50") as cursor:
             rows = await cursor.fetchall()
             return [dict(row) for row in rows]
+
+async def delete_download_job_record(job_id: str):
+    async with aiosqlite.connect(str(DB_PATH)) as db:
+        await db.execute("DELETE FROM downloads WHERE job_id = ?", (job_id,))
+        await db.commit()
