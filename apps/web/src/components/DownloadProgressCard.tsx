@@ -58,10 +58,10 @@ export function DownloadProgressCard({ job, onCancel, onDismiss }: DownloadProgr
     <div
       className={`rounded-2xl border p-4 shadow-2xl shadow-black/70 space-y-3 transition-all animate-in fade-in slide-in-from-bottom-2 ${
         isDone
-          ? "bg-[#0c181e] border-emerald-500/40"
+          ? "bg-[#10161f] border-[#34d399]/40"
           : isFailed || isCancelled
           ? "bg-[#180e12] border-rose-500/40"
-          : "bg-[#0f1524] border-slate-800"
+          : "bg-[#10161f] border-[rgba(238,242,248,0.1)]"
       }`}
     >
       <div className="flex items-start justify-between gap-3">
@@ -69,10 +69,10 @@ export function DownloadProgressCard({ job, onCancel, onDismiss }: DownloadProgr
           <div
             className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
               isDone
-                ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30"
+                ? "bg-[#34d399]/20 text-[#34d399] border border-[#34d399]/30"
                 : isFailed || isCancelled
                 ? "bg-rose-500/20 text-rose-400 border border-rose-500/30"
-                : "bg-cyan-500/20 text-cyan-400 border border-cyan-500/30"
+                : "bg-[#4c8dff]/20 text-[#9fe0ff] border border-[#4c8dff]/30"
             }`}
           >
             {isDone ? (
@@ -87,10 +87,10 @@ export function DownloadProgressCard({ job, onCancel, onDismiss }: DownloadProgr
           </div>
 
           <div className="min-w-0">
-            <h4 className="text-xs font-bold text-white truncate max-w-md" title={job.filename}>
+            <h4 className="text-xs font-bold text-[#eef2f8] truncate max-w-md" title={job.filename}>
               {job.filename}
             </h4>
-            <p className="text-[11px] text-slate-400 font-mono truncate">{job.repo_id}</p>
+            <p className="text-[11px] text-[#8a93a3] font-mono truncate">{job.repo_id}</p>
           </div>
         </div>
 
@@ -99,14 +99,14 @@ export function DownloadProgressCard({ job, onCancel, onDismiss }: DownloadProgr
           <span
             className={`text-[10px] font-mono font-bold px-2.5 py-0.5 rounded-full ${
               isDone
-                ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/30"
+                ? "bg-[#34d399]/10 text-[#34d399] border border-[#34d399]/30"
                 : isRunning
-                ? "bg-cyan-500/10 text-cyan-400 border border-cyan-500/30 animate-pulse"
+                ? "bg-[#4c8dff]/15 text-[#9fe0ff] border border-[#4c8dff]/30 animate-pulse"
                 : isQueued
-                ? "bg-amber-500/10 text-amber-400 border border-amber-500/30"
+                ? "bg-amber-500/10 text-amber-300 border border-amber-500/30"
                 : isCancelled
-                ? "bg-slate-800 text-slate-400 border border-slate-700"
-                : "bg-rose-500/10 text-rose-400 border border-rose-500/30"
+                ? "bg-[#1c2634] text-[#8a93a3] border border-[rgba(238,242,248,0.08)]"
+                : "bg-rose-500/10 text-rose-300 border border-rose-500/30"
             }`}
           >
             {isDone
@@ -124,7 +124,7 @@ export function DownloadProgressCard({ job, onCancel, onDismiss }: DownloadProgr
           {isRunning || isQueued ? (
             <button
               onClick={() => onCancel(job.job_id)}
-              className="p-1 rounded-lg text-slate-400 hover:bg-slate-800 hover:text-rose-400 transition"
+              className="p-1 rounded-lg text-[#8a93a3] hover:bg-[#1c2634] hover:text-rose-400 transition"
               title="Cancel Download"
             >
               <X className="w-4 h-4" />
@@ -132,7 +132,7 @@ export function DownloadProgressCard({ job, onCancel, onDismiss }: DownloadProgr
           ) : (
             <button
               onClick={() => onDismiss(job.job_id)}
-              className="p-1 rounded-lg text-slate-400 hover:bg-slate-800 hover:text-slate-200 transition"
+              className="p-1 rounded-lg text-[#8a93a3] hover:bg-[#1c2634] hover:text-[#eef2f8] transition"
               title="Dismiss Card"
             >
               <X className="w-4 h-4" />
@@ -143,21 +143,21 @@ export function DownloadProgressCard({ job, onCancel, onDismiss }: DownloadProgr
 
       {/* Progress Bar */}
       <div className="space-y-1.5">
-        <div className="h-2 w-full rounded-full bg-slate-800 overflow-hidden">
+        <div className="h-2 w-full rounded-full bg-[#1c2634] overflow-hidden">
           <div
             className={`h-full transition-all duration-300 ${
               isDone
-                ? "bg-emerald-500"
+                ? "bg-[#34d399]"
                 : isFailed || isCancelled
                 ? "bg-rose-500"
-                : "bg-gradient-to-r from-cyan-500 to-blue-500"
+                : "bg-gradient-to-r from-[#4c8dff] to-[#9fe0ff]"
             }`}
             style={{ width: `${displayPercent}%` }}
           />
         </div>
 
         {/* Telemetry Footer */}
-        <div className="flex items-center justify-between text-[11px] font-mono text-slate-400">
+        <div className="flex items-center justify-between text-[11px] font-mono text-[#8a93a3]">
           <div className="flex items-center space-x-2">
             <span>{displayPercent.toFixed(1)}%</span>
             <span>•</span>
@@ -169,24 +169,24 @@ export function DownloadProgressCard({ job, onCancel, onDismiss }: DownloadProgr
           <div className="flex items-center space-x-2">
             {isRunning && (
               <>
-                <span className="flex items-center gap-1 text-cyan-400">
-                  <Zap className="w-3 h-3" />
+                <span className="flex items-center gap-1 text-[#9fe0ff]">
+                  <Zap className="w-3 h-3 text-[#4c8dff]" />
                   {job.speed_mbps ? `${job.speed_mbps.toFixed(1)} MB/s` : "Starting..."}
                 </span>
                 {job.eta_sec ? (
                   <>
                     <span>•</span>
-                    <span className="flex items-center gap-1 text-slate-400">
-                      <Clock className="w-3 h-3" />
+                    <span className="flex items-center gap-1 text-[#8a93a3]">
+                      <Clock className="w-3 h-3 text-[#7fb4ff]" />
                       ETA {formatEta(job.eta_sec)}
                     </span>
                   </>
                 ) : null}
               </>
             )}
-            {isDone && <span className="text-emerald-400 font-semibold">✓ Saved to D:/models</span>}
+            {isDone && <span className="text-[#34d399] font-semibold">✓ Saved to D:/models</span>}
             {isFailed && <span className="text-rose-400 truncate max-w-xs">{job.error || "Download error"}</span>}
-            {isCancelled && <span className="text-slate-500">Download cancelled</span>}
+            {isCancelled && <span className="text-[#8a93a3]">Download cancelled</span>}
           </div>
         </div>
       </div>

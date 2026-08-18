@@ -46,3 +46,5 @@ apps/server/temp_checkpoints/
 Thumbs.db
 .vscode/
 .idea/
+*.zip
+

@@ -3,8 +3,12 @@ import "./globals.css";
 import { AppShell } from "@/components/AppShell";
 
 export const metadata: Metadata = {
-  title: "NeurionForge AI Studio | Local AI Inference & Fine-Tuning",
-  description: "Run open-weight LLMs locally and fine-tune LoRA adapters with zero cloud dependency.",
+  title: "AI Studio — NeurionForge | 100% Local Inference & Fine-Tuning",
+  description:
+    "Run open-weight LLMs locally via quantized GGUF execution, train custom LoRA/QLoRA adapters on your data, and orchestrate local coding agents. Zero cloud dependencies.",
+  icons: {
+    icon: "/favicon.ico",
+  },
 };
 
 export default function RootLayout({
@@ -14,9 +18,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className="dark">
-      <body className="antialiased bg-[#090d16] text-slate-100 min-h-screen selection:bg-cyan-500/30 selection:text-cyan-200">
+      <body className="antialiased bg-[#07090d] text-[#eef2f8] min-h-screen selection:bg-[#4c8dff]/30 selection:text-[#9fe0ff]">
         <AppShell>{children}</AppShell>
       </body>
     </html>
   );
 }
+

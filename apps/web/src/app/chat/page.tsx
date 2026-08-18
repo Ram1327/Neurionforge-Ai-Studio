@@ -279,13 +279,13 @@ export default function ChatPage() {
 
   return (
     <div className="flex h-full w-full overflow-hidden">
-      <div className="flex flex-1 flex-col h-full bg-[#090d16] relative overflow-hidden">
+      <div className="flex flex-1 flex-col h-full bg-[#07090d] relative overflow-hidden">
 
         {/* Top HUD Bar */}
-        <div className="flex items-center justify-between border-b border-slate-800/80 bg-[#0d121f]/70 px-4 py-2.5 backdrop-blur z-10">
+        <div className="flex items-center justify-between border-b border-[rgba(238,242,248,0.08)] bg-[#10161f]/80 px-4 py-2.5 backdrop-blur-md z-10">
           <div className="flex items-center space-x-3">
             <div className="flex items-center space-x-2">
-              <HardDrive className="h-4 w-4 text-cyan-400" />
+              <HardDrive className="h-4 w-4 text-[#4c8dff]" />
               <select
                 value={selectedModelId}
                 onChange={(e) => {
@@ -294,7 +294,7 @@ export default function ChatPage() {
                   if (newId && activeModel?.id !== newId) loadModel(newId);
                 }}
                 disabled={models.length === 0 || isStreaming}
-                className="bg-slate-900 border border-slate-700/80 rounded-lg px-2.5 py-1 text-xs font-medium text-slate-200 focus:outline-none focus:border-cyan-500 cursor-pointer disabled:opacity-50"
+                className="bg-[#10161f] border border-[rgba(238,242,248,0.12)] rounded-lg px-2.5 py-1 text-xs font-mono font-medium text-[#eef2f8] focus:outline-none focus:border-[#4c8dff] cursor-pointer disabled:opacity-50"
               >
                 {models.length === 0 ? (
                   <option value="">No models detected in D:/models</option>
@@ -308,28 +308,28 @@ export default function ChatPage() {
               </select>
             </div>
             {loadingModelId && (
-              <span className="text-xs text-cyan-400 font-mono flex items-center gap-1.5 animate-pulse">
-                <Cpu className="w-3.5 h-3.5 animate-spin" /> Loading into RAM...
+              <span className="text-xs text-[#9fe0ff] font-mono flex items-center gap-1.5 animate-pulse">
+                <Cpu className="w-3.5 h-3.5 animate-spin text-[#4c8dff]" /> Loading into RAM...
               </span>
             )}
           </div>
 
           <div className="flex items-center space-x-2">
             {liveStats && (
-              <div className="hidden sm:flex items-center space-x-2 px-2.5 py-1 rounded-md bg-cyan-950/60 border border-cyan-800/50 text-cyan-300 font-mono text-[11px]">
-                <Zap className="w-3 h-3 text-cyan-400" />
+              <div className="hidden sm:flex items-center space-x-2 px-2.5 py-1 rounded-md bg-[#4c8dff]/10 border border-[#4c8dff]/30 text-[#9fe0ff] font-mono text-[11px]">
+                <Zap className="w-3 h-3 text-[#4c8dff]" />
                 <span>{liveStats.tokens_per_sec} tps</span>
-                <span className="text-cyan-600">|</span>
-                <Clock className="w-3 h-3 text-sky-400" />
+                <span className="text-[#4c8dff]/40">|</span>
+                <Clock className="w-3 h-3 text-[#7fb4ff]" />
                 <span>{liveStats.ttft_ms}ms TTFT</span>
               </div>
             )}
             <button
               onClick={() => setShowSettings(!showSettings)}
-              className={`flex items-center space-x-1.5 px-2.5 py-1 rounded-lg text-xs font-medium border transition-colors ${
+              className={`flex items-center space-x-1.5 px-2.5 py-1 rounded-lg text-xs font-mono font-medium border transition-colors ${
                 showSettings
-                  ? "bg-cyan-500/20 text-cyan-300 border-cyan-500/40"
-                  : "bg-slate-800/80 text-slate-300 border-slate-700 hover:bg-slate-800"
+                  ? "bg-[#4c8dff]/20 text-[#9fe0ff] border-[#4c8dff]/40 shadow-[0_0_10px_rgba(76,141,255,0.2)]"
+                  : "bg-[#1c2634]/60 text-[#8a93a3] border-[rgba(238,242,248,0.08)] hover:bg-[#1c2634] hover:text-[#eef2f8]"
               }`}
             >
               <Sliders className="w-3.5 h-3.5" />
@@ -338,7 +338,7 @@ export default function ChatPage() {
             <button
               onClick={handleClearChat}
               title="Clear conversation history"
-              className="p-1.5 rounded-lg text-slate-400 hover:bg-slate-800 hover:text-slate-200 border border-slate-800"
+              className="p-1.5 rounded-lg text-[#8a93a3] hover:bg-[#1c2634] hover:text-[#eef2f8] border border-[rgba(238,242,248,0.08)]"
             >
               <RotateCcw className="w-3.5 h-3.5" />
             </button>
@@ -347,8 +347,8 @@ export default function ChatPage() {
 
         {/* Server Offline Banner */}
         {!isServerOnline && (
-          <div className="bg-amber-500/10 border-b border-amber-500/20 px-4 py-2 text-xs text-amber-400 flex items-center space-x-2">
-            <AlertCircle className="w-4 h-4" />
+          <div className="bg-amber-500/10 border-b border-amber-500/20 px-4 py-2 text-xs text-amber-300 font-mono flex items-center space-x-2">
+            <AlertCircle className="w-4 h-4 text-amber-400" />
             <span>
               Backend server is offline. Run <code>pnpm dev:server</code> on port 8000.
             </span>
@@ -364,11 +364,13 @@ export default function ChatPage() {
         >
           {messages.length === 0 && !isStreaming ? (
             <div className="h-full flex flex-col items-center justify-center max-w-xl mx-auto text-center my-auto py-12">
-              <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center shadow-lg shadow-cyan-500/20 mb-4">
-                <Sparkles className="w-6 h-6 text-white" />
+              <div className="w-12 h-12 rounded-2xl bg-[#4c8dff]/15 border border-[#4c8dff]/30 flex items-center justify-center shadow-[0_0_20px_rgba(76,141,255,0.25)] mb-4">
+                <Sparkles className="w-6 h-6 text-[#9fe0ff]" />
               </div>
-              <h2 className="text-xl font-bold text-white mb-2">NeurionForge Inference Studio</h2>
-              <p className="text-sm text-slate-400 mb-8 max-w-md">
+              <h2 className="font-display font-bold uppercase text-2xl text-[#eef2f8] mb-2 tracking-tight">
+                NeurionForge Inference Studio
+              </h2>
+              <p className="text-sm text-[#8a93a3] mb-8 max-w-md">
                 100% local quantized inference running directly on your CPU with sub-500ms TTFT. Pick a prompt below or type your own.
               </p>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 w-full text-left">
@@ -376,10 +378,10 @@ export default function ChatPage() {
                   <button
                     key={idx}
                     onClick={() => handleSendMessage(prompt)}
-                    className="p-3 rounded-xl bg-slate-900/80 border border-slate-800 hover:border-cyan-500/50 text-xs text-slate-300 hover:text-white transition-all text-left"
+                    className="p-3.5 rounded-xl bg-[#10161f]/80 border border-[rgba(238,242,248,0.08)] hover:border-[#4c8dff]/50 text-xs text-[#8a93a3] hover:text-[#eef2f8] transition-all text-left group"
                   >
-                    <span className="text-cyan-400 font-mono text-[10px] block mb-1">Prompt 0{idx + 1}</span>
-                    {prompt}
+                    <span className="text-[#4c8dff] font-mono text-[10px] block mb-1">PROMPT 0{idx + 1}</span>
+                    <span className="group-hover:text-[#eef2f8] transition-colors">{prompt}</span>
                   </button>
                 ))}
               </div>
@@ -392,50 +394,50 @@ export default function ChatPage() {
                   className={`flex space-x-3.5 max-w-4xl mx-auto ${msg.role === "user" ? "justify-end" : "justify-start"}`}
                 >
                   {msg.role === "assistant" && (
-                    <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center shrink-0 shadow-md shadow-cyan-500/10 mt-1">
-                      <Sparkles className="w-4 h-4 text-white" />
+                    <div className="w-8 h-8 rounded-lg bg-[#4c8dff]/15 border border-[#4c8dff]/30 flex items-center justify-center shrink-0 shadow-sm mt-1">
+                      <Sparkles className="w-4 h-4 text-[#9fe0ff]" />
                     </div>
                   )}
                   <div className={`flex flex-col group relative max-w-[85%] sm:max-w-[78%] ${msg.role === "user" ? "items-end" : "items-start"}`}>
                     <div className={`rounded-2xl px-4 py-3 text-sm leading-relaxed ${
                       msg.role === "user"
-                        ? "bg-gradient-to-r from-cyan-600 to-blue-600 text-white rounded-br-none shadow-md shadow-cyan-600/10"
-                        : "bg-[#111726] border border-slate-800 text-slate-200 rounded-bl-none shadow-sm"
+                        ? "bg-gradient-to-r from-[#4c8dff] to-[#2563eb] text-white rounded-br-none shadow-[0_4px_15px_rgba(76,141,255,0.25)]"
+                        : "bg-[#10161f] border border-[rgba(238,242,248,0.08)] text-[#eef2f8] rounded-bl-none shadow-sm"
                     }`}>
                       {msg.role === "user" ? (
                         <div className="whitespace-pre-wrap">{msg.content}</div>
                       ) : (
-                        <div className="prose prose-invert prose-sm max-w-none">
+                        <div className="prose prose-invert prose-sm max-w-none text-[#eef2f8]/90">
                           <ReactMarkdown remarkPlugins={[remarkGfm]}>{msg.content}</ReactMarkdown>
                         </div>
                       )}
                     </div>
                     {msg.role === "assistant" && (
-                      <div className="flex items-center space-x-3 mt-1.5 px-1 text-[11px] text-slate-500 font-mono">
+                      <div className="flex items-center space-x-3 mt-1.5 px-1 text-[11px] text-[#8a93a3] font-mono">
                         {msg.stats && (
                           <>
-                            <span className="flex items-center gap-1 text-cyan-400/90"><Zap className="w-3 h-3" />{msg.stats.tokens_per_sec} tok/s</span>
+                            <span className="flex items-center gap-1 text-[#9fe0ff]"><Zap className="w-3 h-3" />{msg.stats.tokens_per_sec} tok/s</span>
                             <span>•</span>
-                            <span className="flex items-center gap-1 text-slate-400"><Clock className="w-3 h-3" />{msg.stats.ttft_ms}ms TTFT</span>
+                            <span className="flex items-center gap-1 text-[#8a93a3]"><Clock className="w-3 h-3" />{msg.stats.ttft_ms}ms TTFT</span>
                             <span>•</span>
-                            <span className="flex items-center gap-1 text-slate-400"><Hash className="w-3 h-3" />{msg.stats.total_tokens} toks</span>
+                            <span className="flex items-center gap-1 text-[#8a93a3]"><Hash className="w-3 h-3" />{msg.stats.total_tokens} toks</span>
                             <span>•</span>
-                            <span className="flex items-center gap-1 text-slate-400"><Timer className="w-3 h-3" />{msg.stats.total_duration_sec}s</span>
+                            <span className="flex items-center gap-1 text-[#8a93a3]"><Timer className="w-3 h-3" />{msg.stats.total_duration_sec}s</span>
                           </>
                         )}
                         <button
                           onClick={() => handleCopy(msg.content, idx)}
-                          className="opacity-0 group-hover:opacity-100 transition-opacity ml-auto text-slate-400 hover:text-slate-200 flex items-center gap-1"
+                          className="opacity-0 group-hover:opacity-100 transition-opacity ml-auto text-[#8a93a3] hover:text-[#eef2f8] flex items-center gap-1"
                         >
-                          {copiedIndex === idx ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
+                          {copiedIndex === idx ? <Check className="w-3 h-3 text-[#34d399]" /> : <Copy className="w-3 h-3" />}
                           <span>{copiedIndex === idx ? "Copied" : "Copy"}</span>
                         </button>
                       </div>
                     )}
                   </div>
                   {msg.role === "user" && (
-                    <div className="w-8 h-8 rounded-lg bg-slate-800 border border-slate-700 flex items-center justify-center shrink-0 mt-1">
-                      <User className="w-4 h-4 text-slate-300" />
+                    <div className="w-8 h-8 rounded-lg bg-[#1c2634] border border-[rgba(238,242,248,0.1)] flex items-center justify-center shrink-0 mt-1">
+                      <User className="w-4 h-4 text-[#8a93a3]" />
                     </div>
                   )}
                 </div>
@@ -444,19 +446,19 @@ export default function ChatPage() {
               {/* Live Streaming Bubble */}
               {isStreaming && (
                 <div className="flex space-x-3.5 max-w-4xl mx-auto justify-start">
-                  <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center shrink-0 shadow-md shadow-cyan-500/10 mt-1 animate-pulse">
-                    <Sparkles className="w-4 h-4 text-white" />
+                  <div className="w-8 h-8 rounded-lg bg-[#4c8dff]/20 border border-[#4c8dff]/40 flex items-center justify-center shrink-0 shadow-[0_0_12px_rgba(76,141,255,0.3)] mt-1 animate-pulse">
+                    <Sparkles className="w-4 h-4 text-[#9fe0ff]" />
                   </div>
                   <div className="flex flex-col items-start max-w-[85%] sm:max-w-[78%]">
-                    <div className="rounded-2xl rounded-bl-none px-4 py-3 text-sm leading-relaxed bg-[#111726] border border-cyan-500/30 text-slate-200 shadow-sm">
-                      <div className="prose prose-invert prose-sm max-w-none">
+                    <div className="rounded-2xl rounded-bl-none px-4 py-3 text-sm leading-relaxed bg-[#10161f] border border-[#4c8dff]/40 text-[#eef2f8] shadow-sm">
+                      <div className="prose prose-invert prose-sm max-w-none text-[#eef2f8]/90">
                         <ReactMarkdown remarkPlugins={[remarkGfm]}>{streamedContent || "Thinking..."}</ReactMarkdown>
                         <span className="animate-cursor" />
                       </div>
                     </div>
                     {liveStats && (
-                      <div className="flex items-center space-x-2 mt-1.5 px-1 text-[11px] text-cyan-400 font-mono">
-                        <Zap className="w-3 h-3" />
+                      <div className="flex items-center space-x-2 mt-1.5 px-1 text-[11px] text-[#9fe0ff] font-mono">
+                        <Zap className="w-3 h-3 text-[#4c8dff]" />
                         <span>{liveStats.tokens_per_sec} tok/s</span>
                         <span>•</span>
                         <span>{liveStats.total_tokens} tokens</span>
@@ -467,8 +469,8 @@ export default function ChatPage() {
               )}
 
               {streamError && (
-                <div className="max-w-4xl mx-auto p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs flex items-center space-x-2">
-                  <AlertCircle className="w-4 h-4 shrink-0" />
+                <div className="max-w-4xl mx-auto p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-300 text-xs font-mono flex items-center space-x-2">
+                  <AlertCircle className="w-4 h-4 shrink-0 text-rose-400" />
                   <span>{streamError}</span>
                 </div>
               )}
@@ -481,7 +483,7 @@ export default function ChatPage() {
           {showScrollToTop && (
             <button
               onClick={scrollToTop}
-              className="pointer-events-auto p-2.5 rounded-full bg-slate-800/95 hover:bg-slate-700 border border-slate-700 text-slate-300 hover:text-white shadow-xl backdrop-blur-sm transition-all hover:scale-110"
+              className="pointer-events-auto p-2.5 rounded-full bg-[#1c2634]/90 hover:bg-[#1c2634] border border-[rgba(238,242,248,0.1)] text-[#8a93a3] hover:text-[#eef2f8] shadow-xl backdrop-blur-sm transition-all hover:scale-110"
               title="Scroll to top"
             >
               <ArrowUp className="w-4 h-4" />
@@ -492,21 +494,21 @@ export default function ChatPage() {
               onClick={smoothScrollToBottom}
               className={`pointer-events-auto flex items-center gap-2 pl-3 pr-4 py-2.5 rounded-full border shadow-xl backdrop-blur-sm transition-all hover:scale-105 ${
                 isStreaming
-                  ? "bg-cyan-900/95 border-cyan-500/60 text-cyan-200 hover:bg-cyan-800/95"
-                  : "bg-slate-800/95 hover:bg-slate-700 border-slate-700 text-slate-200"
+                  ? "bg-[#4c8dff]/20 border-[#4c8dff]/50 text-[#9fe0ff] hover:bg-[#4c8dff]/30 shadow-[0_0_15px_rgba(76,141,255,0.25)]"
+                  : "bg-[#1c2634]/90 hover:bg-[#1c2634] border-[rgba(238,242,248,0.1)] text-[#eef2f8]"
               }`}
               title="Scroll to bottom"
             >
               <ArrowDown className="w-4 h-4 shrink-0" />
-              {isStreaming && <span className="text-xs font-semibold whitespace-nowrap">Jump to latest</span>}
+              {isStreaming && <span className="text-xs font-mono font-semibold whitespace-nowrap">Jump to latest</span>}
             </button>
           )}
         </div>
 
         {/* Input Bar */}
-        <div className="border-t border-slate-800/80 bg-[#0d121f] p-3 md:p-4">
+        <div className="border-t border-[rgba(238,242,248,0.08)] bg-[#10161f]/90 p-3 md:p-4 backdrop-blur-md">
           <div className="max-w-4xl mx-auto">
-            <div className="relative flex items-end rounded-2xl bg-slate-900/90 border border-slate-700/70 shadow-inner focus-within:border-cyan-500/70 focus-within:ring-1 focus-within:ring-cyan-500/20 transition-all p-2">
+            <div className="relative flex items-end rounded-2xl bg-[#07090d]/90 border border-[rgba(238,242,248,0.1)] shadow-inner focus-within:border-[#4c8dff]/70 focus-within:ring-1 focus-within:ring-[#4c8dff]/30 transition-all p-2">
               <textarea
                 ref={textareaRef}
                 value={inputText}
@@ -515,13 +517,13 @@ export default function ChatPage() {
                 placeholder="Ask anything, generate code, or test inference..."
                 rows={1}
                 disabled={isStreaming}
-                className="w-full resize-none bg-transparent px-3 py-1.5 text-sm text-slate-100 placeholder-slate-500 focus:outline-none max-h-36 min-h-[40px]"
+                className="w-full resize-none bg-transparent px-3 py-1.5 text-sm text-[#eef2f8] placeholder-[#8a93a3] focus:outline-none max-h-36 min-h-[40px]"
               />
               <div className="flex items-center space-x-2 pl-2">
                 {isStreaming ? (
                   <button
                     onClick={stopStreaming}
-                    className="flex h-9 items-center space-x-1.5 rounded-xl bg-rose-600 hover:bg-rose-500 px-3.5 text-xs font-semibold text-white transition-all shadow-md shadow-rose-600/20"
+                    className="flex h-9 items-center space-x-1.5 rounded-xl bg-rose-600 hover:bg-rose-500 px-3.5 text-xs font-mono font-semibold text-white transition-all shadow-md shadow-rose-600/20"
                   >
                     <Square className="h-3.5 w-3.5 fill-current" />
                     <span>Stop</span>
@@ -530,16 +532,16 @@ export default function ChatPage() {
                   <button
                     onClick={() => handleSendMessage()}
                     disabled={!inputText.trim()}
-                    className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 text-white disabled:opacity-40 disabled:cursor-not-allowed hover:scale-105 transition-all shadow-md shadow-cyan-500/20"
+                    className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#4c8dff] hover:bg-[#7fb4ff] text-[#07090d] disabled:opacity-40 disabled:cursor-not-allowed hover:scale-105 transition-all shadow-[0_0_15px_rgba(76,141,255,0.3)]"
                   >
                     <Send className="h-4 w-4" />
                   </button>
                 )}
               </div>
             </div>
-            <div className="flex items-center justify-between px-2 pt-2 text-[11px] text-slate-500">
-              <span>Press <strong className="text-slate-400">Enter</strong> to send, <strong className="text-slate-400">Shift+Enter</strong> for newline</span>
-              <span className="font-mono">
+            <div className="flex items-center justify-between px-2 pt-2 text-[11px] text-[#8a93a3] font-mono">
+              <span>Press <strong className="text-[#eef2f8]">Enter</strong> to send, <strong className="text-[#eef2f8]">Shift+Enter</strong> for newline</span>
+              <span>
                 {activeModel ? `${activeModel.name} (${activeModel.quantization})` : "No Model Loaded"}
               </span>
             </div>
@@ -549,17 +551,17 @@ export default function ChatPage() {
 
       {/* Right Drawer: Inference Parameters */}
       {showSettings && (
-        <div className="w-80 border-l border-slate-800/80 bg-[#0d121f] p-5 overflow-y-auto space-y-6 flex flex-col shrink-0">
-          <div className="flex items-center justify-between pb-3 border-b border-slate-800">
-            <h3 className="text-sm font-bold text-white flex items-center gap-2">
-              <Sliders className="w-4 h-4 text-cyan-400" />
+        <div className="w-80 border-l border-[rgba(238,242,248,0.08)] bg-[#10161f] p-5 overflow-y-auto space-y-6 flex flex-col shrink-0">
+          <div className="flex items-center justify-between pb-3 border-b border-[rgba(238,242,248,0.08)]">
+            <h3 className="font-display font-bold uppercase text-base text-[#eef2f8] flex items-center gap-2 tracking-wide">
+              <Sliders className="w-4 h-4 text-[#4c8dff]" />
               Inference Parameters
             </h3>
-            <button onClick={() => setShowSettings(false)} className="text-xs text-slate-400 hover:text-white">Close</button>
+            <button onClick={() => setShowSettings(false)} className="text-xs font-mono text-[#8a93a3] hover:text-[#eef2f8]">Close</button>
           </div>
 
           <div className="space-y-2">
-            <label className="text-xs font-semibold text-slate-300">System Prompt Persona</label>
+            <label className="text-xs font-mono font-semibold text-[#eef2f8] uppercase tracking-wide">System Prompt Persona</label>
             <div className="grid grid-cols-2 gap-1.5">
               {SYSTEM_PROMPT_PRESETS.map((preset, idx) => (
                 <button
@@ -567,8 +569,8 @@ export default function ChatPage() {
                   onClick={() => setSystemPrompt(preset.prompt)}
                   className={`px-2.5 py-1.5 rounded-lg text-[11px] font-medium border text-left truncate transition-colors ${
                     systemPrompt === preset.prompt
-                      ? "bg-cyan-500/10 text-cyan-300 border-cyan-500/30"
-                      : "bg-slate-900 border-slate-800 text-slate-400 hover:text-slate-200"
+                      ? "bg-[#4c8dff]/15 text-[#9fe0ff] border-[#4c8dff]/30"
+                      : "bg-[#07090d] border-[rgba(238,242,248,0.08)] text-[#8a93a3] hover:text-[#eef2f8]"
                   }`}
                 >
                   {preset.name}
@@ -579,52 +581,52 @@ export default function ChatPage() {
               value={systemPrompt}
               onChange={(e) => setSystemPrompt(e.target.value)}
               rows={3}
-              className="w-full rounded-lg bg-slate-900 border border-slate-800 p-2 text-xs text-slate-200 focus:outline-none focus:border-cyan-500"
+              className="w-full rounded-lg bg-[#07090d] border border-[rgba(238,242,248,0.08)] p-2 text-xs text-[#eef2f8] focus:outline-none focus:border-[#4c8dff]"
             />
           </div>
 
           <div className="space-y-2">
-            <div className="flex justify-between text-xs">
-              <span className="font-semibold text-slate-300">Temperature</span>
-              <span className="font-mono text-cyan-400">{temperature}</span>
+            <div className="flex justify-between text-xs font-mono">
+              <span className="font-semibold text-[#eef2f8]">Temperature</span>
+              <span className="text-[#9fe0ff]">{temperature}</span>
             </div>
             <input type="range" min="0.0" max="1.5" step="0.05" value={temperature}
               onChange={(e) => setTemperature(parseFloat(e.target.value))}
-              className="w-full accent-cyan-400 bg-slate-800" />
-            <p className="text-[11px] text-slate-500">Higher values increase creativity; lower values make output more deterministic.</p>
+              className="w-full accent-[#4c8dff] bg-[#1c2634]" />
+            <p className="text-[11px] text-[#8a93a3]">Higher values increase creativity; lower values make output more deterministic.</p>
           </div>
 
           <div className="space-y-2">
-            <div className="flex justify-between text-xs">
-              <span className="font-semibold text-slate-300">Top-P (Nucleus)</span>
-              <span className="font-mono text-cyan-400">{topP}</span>
+            <div className="flex justify-between text-xs font-mono">
+              <span className="font-semibold text-[#eef2f8]">Top-P (Nucleus)</span>
+              <span className="text-[#9fe0ff]">{topP}</span>
             </div>
             <input type="range" min="0.1" max="1.0" step="0.05" value={topP}
               onChange={(e) => setTopP(parseFloat(e.target.value))}
-              className="w-full accent-cyan-400 bg-slate-800" />
-            <p className="text-[11px] text-slate-500">Limits token pool to cumulative probability mass.</p>
+              className="w-full accent-[#4c8dff] bg-[#1c2634]" />
+            <p className="text-[11px] text-[#8a93a3]">Limits token pool to cumulative probability mass.</p>
           </div>
 
           <div className="space-y-2">
-            <div className="flex justify-between text-xs">
-              <span className="font-semibold text-slate-300">Max Generation Tokens</span>
-              <span className="font-mono text-cyan-400">{maxTokens}</span>
+            <div className="flex justify-between text-xs font-mono">
+              <span className="font-semibold text-[#eef2f8]">Max Generation Tokens</span>
+              <span className="text-[#9fe0ff]">{maxTokens}</span>
             </div>
             <input type="range" min="64" max="2048" step="64" value={maxTokens}
               onChange={(e) => setMaxTokens(parseInt(e.target.value))}
-              className="w-full accent-cyan-400 bg-slate-800" />
-            <p className="text-[11px] text-slate-500">Maximum tokens generated in a single response.</p>
+              className="w-full accent-[#4c8dff] bg-[#1c2634]" />
+            <p className="text-[11px] text-[#8a93a3]">Maximum tokens generated in a single response.</p>
           </div>
 
-          <div className="p-3 rounded-xl bg-slate-900 border border-slate-800 space-y-2 mt-auto">
-            <div className="text-xs font-semibold text-slate-300 flex items-center gap-1.5">
-              <Cpu className="w-3.5 h-3.5 text-cyan-400" />
+          <div className="p-3 rounded-xl bg-[#07090d] border border-[rgba(238,242,248,0.08)] space-y-2 mt-auto">
+            <div className="text-xs font-mono font-semibold text-[#eef2f8] flex items-center gap-1.5 uppercase">
+              <Cpu className="w-3.5 h-3.5 text-[#4c8dff]" />
               Runtime Execution
             </div>
-            <div className="text-[11px] text-slate-400 space-y-1 font-mono">
-              <div className="flex justify-between"><span>Engine:</span><span className="text-slate-200">llama.cpp CPU</span></div>
-              <div className="flex justify-between"><span>Prompt Caching:</span><span className="text-emerald-400">KV Enabled</span></div>
-              <div className="flex justify-between"><span>Quantization:</span><span className="text-cyan-400">{activeModel?.quantization || "Q4_K_M"}</span></div>
+            <div className="text-[11px] text-[#8a93a3] space-y-1 font-mono">
+              <div className="flex justify-between"><span>Engine:</span><span className="text-[#eef2f8]">llama.cpp CPU</span></div>
+              <div className="flex justify-between"><span>Prompt Caching:</span><span className="text-[#34d399]">KV Enabled</span></div>
+              <div className="flex justify-between"><span>Quantization:</span><span className="text-[#9fe0ff]">{activeModel?.quantization || "Q4_K_M"}</span></div>
             </div>
           </div>
         </div>
@@ -632,3 +634,4 @@ export default function ChatPage() {
     </div>
   );
 }
+
