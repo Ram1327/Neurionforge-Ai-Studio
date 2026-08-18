@@ -154,7 +154,7 @@ export function AppShell({ children }: AppShellProps) {
               className="flex items-center space-x-2.5 rounded-xl px-3 py-2 text-xs font-medium text-[#8a93a3] hover:bg-[#1c2634]/60 hover:text-[#eef2f8] transition-all"
             >
               <Compass className="h-3.5 w-3.5 shrink-0 text-[#8a93a3]" />
-              <span className="truncate">Overview &amp; Toolkit</span>
+              <span className="truncate">Home</span>
             </Link>
 
             {navItems.map((item) => {
