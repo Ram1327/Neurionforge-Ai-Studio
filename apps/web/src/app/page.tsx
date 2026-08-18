@@ -18,6 +18,7 @@ import {
   ExternalLink,
 } from "lucide-react";
 import { useModels } from "@/hooks/useModels";
+import { AiStudioLogo } from "@/components/AiStudioLogo";
 
 export default function HomePage() {
   const { isServerOnline, activeModel } = useModels();
@@ -75,23 +76,11 @@ export default function HomePage() {
       <header className="flex items-center justify-between gap-4 sm:gap-6 py-6 md:py-8 anim" style={{ "--d": "0s" } as React.CSSProperties}>
         {/* Brand */}
         <Link href="/" className="flex items-center gap-2.5 shrink-0 group" aria-label="NeurionForge AI Studio">
-          <svg
+          <AiStudioLogo
+            width={38}
+            height={29}
             className="shrink-0 transition-transform group-hover:scale-105"
-            width="34"
-            height="34"
-            viewBox="0 0 40 40"
-            fill="none"
-            xmlns="http://www.w3.org/2000/svg"
-          >
-            <path d="M20 2L36 11V29L20 38L4 29V11L20 2Z" stroke="#4c8dff" strokeWidth="1.6" />
-            <path
-              d="M13 27V13L20 17.5V13L27 17.5V27"
-              stroke="#eef2f8"
-              strokeWidth="1.8"
-              strokeLinecap="square"
-              strokeLinejoin="round"
-            />
-          </svg>
+          />
           <span className="font-display font-bold text-xl tracking-tight text-[#eef2f8]">
             NeurionForge
           </span>
@@ -99,6 +88,7 @@ export default function HomePage() {
             AI Studio
           </span>
         </Link>
+
 
         {/* Desktop Internal Navigation Pill */}
         <nav
@@ -615,14 +605,18 @@ export default function HomePage() {
 
       {/* ─── SITE FOOTER ─────────────────────────────────────────────────── */}
       <footer className="mt-14 pt-8 border-t border-[rgba(238,242,248,0.08)] flex flex-col sm:flex-row items-center justify-between gap-6 text-xs text-[#8a93a3]">
-        <div className="flex flex-col gap-1 text-center sm:text-left">
-          <span className="font-display font-bold text-base text-[#eef2f8] tracking-tight">
-            NeurionForge
-          </span>
-          <span className="text-[12px] text-[#8a93a3]">
-            &copy; 2026 NeurionForge. All rights reserved.
-          </span>
+        <div className="flex items-center gap-3 text-center sm:text-left">
+          <AiStudioLogo width={32} height={24} className="shrink-0" />
+          <div className="flex flex-col gap-0.5">
+            <span className="font-display font-bold text-base text-[#eef2f8] tracking-tight">
+              NeurionForge AI Studio
+            </span>
+            <span className="text-[12px] text-[#8a93a3]">
+              &copy; 2026 NeurionForge. All rights reserved.
+            </span>
+          </div>
         </div>
+
 
         <nav className="flex items-center gap-4 sm:gap-6 flex-wrap justify-center font-mono text-[12px]" aria-label="Studio Links">
           <Link href="/chat" className="text-[#eef2f8]/70 hover:text-[#9fe0ff] transition-colors">

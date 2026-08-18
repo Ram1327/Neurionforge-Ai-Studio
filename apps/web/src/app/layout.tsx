@@ -8,8 +8,17 @@ export const metadata: Metadata = {
   description:
     "Run open-weight LLMs locally via quantized GGUF execution, train custom LoRA/QLoRA adapters on your data, and orchestrate local coding agents. Zero cloud dependencies.",
   icons: {
-    icon: "/favicon.ico",
+    icon: [
+      { url: "/icon.svg", type: "image/svg+xml" },
+      { url: "/favicon.svg", type: "image/svg+xml" },
+    ],
+    apple: [
+      { url: "/apple-icon.svg", type: "image/svg+xml" },
+    ],
+    shortcut: "/icon.svg",
   },
+
+
 };
 
 export default function RootLayout({

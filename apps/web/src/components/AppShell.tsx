@@ -23,6 +23,8 @@ import {
 import { useModels } from "@/hooks/useModels";
 import { useChat } from "@/context/ChatContext";
 import { InteractiveBackground } from "@/components/InteractiveBackground";
+import { AiStudioLogo } from "@/components/AiStudioLogo";
+
 
 interface AppShellProps {
   children: React.ReactNode;
@@ -104,24 +106,13 @@ export function AppShell({ children }: AppShellProps) {
               className="flex items-center space-x-3 group min-w-0"
               onClick={() => setMobileOpen(false)}
             >
-              <svg
+              <AiStudioLogo
+                width={34}
+                height={26}
                 className="shrink-0 transition-transform group-hover:scale-105"
-                width="30"
-                height="30"
-                viewBox="0 0 40 40"
-                fill="none"
-                xmlns="http://www.w3.org/2000/svg"
-              >
-                <path d="M20 2L36 11V29L20 38L4 29V11L20 2Z" stroke="#4c8dff" strokeWidth="1.6" />
-                <path
-                  d="M13 27V13L20 17.5V13L27 17.5V27"
-                  stroke="#eef2f8"
-                  strokeWidth="1.8"
-                  strokeLinecap="square"
-                  strokeLinejoin="round"
-                />
-              </svg>
+              />
               <div className="truncate">
+
                 <div className="flex items-center space-x-1.5">
                   <span className="font-display font-bold text-base tracking-tight text-[#eef2f8]">
                     NeurionForge
