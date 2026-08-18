@@ -12,6 +12,7 @@ import {
   CheckCircle2,
   RefreshCw,
   Info,
+  Layers,
 } from "lucide-react";
 import { useModels } from "@/hooks/useModels";
 import { API_BASE, WS_BASE, api } from "@/lib/api";
@@ -35,13 +36,19 @@ export default function SettingsPage() {
     }
   };
 
+  const totalRam = systemStatus?.total_ram_gb || 16.0;
+  const availRam = systemStatus?.available_ram_gb !== undefined ? systemStatus.available_ram_gb : 12.0;
+  const usedRam = Math.max(0, Math.round((totalRam - availRam) * 10) / 10);
+  const ramUsagePercent = Math.min(100, Math.round((usedRam / totalRam) * 100));
+
   const roadmap = [
     { phase: "Phase 0", title: "Foundations & GGUF Verification", status: "Completed" },
     { phase: "Phase 1", title: "Inference Studio (LM Studio v1)", status: "Completed" },
-    { phase: "Phase 1.1", title: "HuggingFace Hub In-App Downloader", status: "Active" },
+    { phase: "Phase 1.1", title: "HuggingFace Hub In-App Downloader", status: "Completed" },
+    { phase: "Phase 1.2", title: "Chat Multi-Session, Context Bar & UX Polish", status: "Active" },
     { phase: "Phase 2", title: "LoRA / QLoRA Fine-Tuning Studio", status: "Next" },
-    { phase: "Phase 3", title: "RAG & Desktop Packaging", status: "Upcoming" },
-    { phase: "Phase 4", title: "Local Coding Agent Platform", status: "Upcoming" },
+    { phase: "Phase 3", title: "RAG & Desktop Packaging (Tauri)", status: "Upcoming" },
+    { phase: "Phase 4", title: "Local Autonomous Coding Agent Platform", status: "Upcoming" },
   ];
 
   return (
@@ -53,7 +60,7 @@ export default function SettingsPage() {
           System &amp; Hardware Diagnostics
         </h1>
         <p className="text-sm text-[#8a93a3] mt-1">
-          Review local CPU threads, RAM allocation, server connectivity, and architectural milestones.
+          Review local CPU threads, RAM allocation, active model memory footprint, and architectural milestones.
         </p>
       </div>
 
@@ -78,10 +85,10 @@ export default function SettingsPage() {
             <Activity className="w-4 h-4 text-[#34d399]" />
           </div>
           <div className="text-2xl font-bold font-mono text-[#eef2f8]">
-            {systemStatus?.total_ram_gb ? `${systemStatus.total_ram_gb} GB` : "16.0 GB"}
+            {totalRam} GB
           </div>
           <span className="text-[11px] text-[#34d399] font-mono mt-1 block">
-            {systemStatus?.available_ram_gb ? `${systemStatus.available_ram_gb} GB Available` : "Ready"}
+            {availRam} GB Available ({ramUsagePercent}% Used)
           </span>
         </div>
 
@@ -116,6 +123,61 @@ export default function SettingsPage() {
           <span className="text-[11px] text-[#8a93a3] mt-1 block font-mono">
             {isServerOnline ? "Port 8000" : "Run dev:server"}
           </span>
+        </div>
+      </div>
+
+      {/* Live RAM Allocation & Active Model Memory Bar */}
+      <div className="p-6 rounded-2xl bg-[#10161f]/70 border border-[rgba(238,242,248,0.08)] backdrop-blur-md space-y-4">
+        <div className="flex items-center justify-between">
+          <h3 className="font-display font-bold uppercase text-base text-[#eef2f8] flex items-center gap-2 tracking-wide">
+            <Activity className="w-4 h-4 text-[#34d399]" />
+            Live RAM &amp; Memory Allocation
+          </h3>
+          <span className="text-xs font-mono text-[#8a93a3]">
+            {usedRam} GB / {totalRam} GB Total
+          </span>
+        </div>
+
+        {/* Visual RAM Usage Gauge */}
+        <div className="space-y-2">
+          <div className="w-full h-3 bg-[#1c2634] rounded-full overflow-hidden border border-[rgba(238,242,248,0.08)] p-0.5">
+            <div
+              className={`h-full rounded-full transition-all duration-500 ${
+                ramUsagePercent >= 85
+                  ? "bg-gradient-to-r from-rose-500 to-rose-600"
+                  : ramUsagePercent >= 65
+                  ? "bg-gradient-to-r from-amber-500 to-amber-600"
+                  : "bg-gradient-to-r from-[#4c8dff] to-[#34d399]"
+              }`}
+              style={{ width: `${ramUsagePercent}%` }}
+            />
+          </div>
+          <div className="flex justify-between text-[11px] font-mono text-[#8a93a3]">
+            <span>Allocated: {usedRam} GB ({ramUsagePercent}%)</span>
+            <span>Free RAM: {availRam} GB</span>
+          </div>
+        </div>
+
+        {/* Active Model Breakdown */}
+        <div className="mt-4 pt-4 border-t border-[rgba(238,242,248,0.08)] grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs font-mono">
+          <div className="p-3 rounded-xl bg-[#07090d]/80 border border-[rgba(238,242,248,0.08)]">
+            <span className="text-[#8a93a3] font-semibold block text-[10px] uppercase">Loaded Model</span>
+            <span className="text-[#eef2f8] font-bold mt-1 block truncate">
+              {activeModel ? activeModel.name : "None (0 GB in RAM)"}
+            </span>
+          </div>
+          <div className="p-3 rounded-xl bg-[#07090d]/80 border border-[rgba(238,242,248,0.08)]">
+            <span className="text-[#8a93a3] font-semibold block text-[10px] uppercase">Model Weight Footprint</span>
+            <span className="text-[#9fe0ff] font-bold mt-1 block">
+              {activeModel ? `${activeModel.size_gb} GB` : "0.0 GB"}
+            </span>
+          </div>
+          <div className="p-3 rounded-xl bg-[#07090d]/80 border border-[rgba(238,242,248,0.08)]">
+            <span className="text-[#8a93a3] font-semibold block text-[10px] uppercase">KV Cache Precision</span>
+            <span className="text-[#34d399] font-bold mt-1 block">
+              f16 / Quantized
+            </span>
+          </div>
         </div>
       </div>
 
@@ -187,4 +249,3 @@ export default function SettingsPage() {
     </div>
   );
 }
-

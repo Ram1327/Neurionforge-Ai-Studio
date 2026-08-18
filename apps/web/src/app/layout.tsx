@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { AppShell } from "@/components/AppShell";
+import { ChatProvider } from "@/context/ChatContext";
 
 export const metadata: Metadata = {
   title: "AI Studio — NeurionForge | 100% Local Inference & Fine-Tuning",
@@ -19,9 +20,10 @@ export default function RootLayout({
   return (
     <html lang="en" className="dark">
       <body className="antialiased bg-[#07090d] text-[#eef2f8] min-h-screen selection:bg-[#4c8dff]/30 selection:text-[#9fe0ff]">
-        <AppShell>{children}</AppShell>
+        <ChatProvider>
+          <AppShell>{children}</AppShell>
+        </ChatProvider>
       </body>
     </html>
   );
 }
-

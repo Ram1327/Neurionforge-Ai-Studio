@@ -21,10 +21,17 @@ import {
   Cpu,
   ArrowDown,
   ArrowUp,
+  Download,
+  FileText,
+  FileJson,
+  Plus,
+  Edit2,
 } from "lucide-react";
 import { ChatMessage } from "@neurionforge/shared-types";
 import { useModels } from "@/hooks/useModels";
 import { useInferenceStream } from "@/hooks/useInferenceStream";
+import { useChat } from "@/context/ChatContext";
+import { ContextUsageBar } from "@/components/ContextUsageBar";
 
 const SYSTEM_PROMPT_PRESETS = [
   {
@@ -56,10 +63,22 @@ const SCROLL_BOTTOM_THRESHOLD = 60; // px from bottom = considered "at bottom"
 
 export default function ChatPage() {
   const { models, activeModel, loadModel, isServerOnline, loadingModelId } = useModels();
+  const {
+    messages,
+    setMessages,
+    activeSession,
+    createSession,
+    clearActiveSessionMessages,
+    exportMarkdown,
+    exportJson,
+    renameSession,
+  } = useChat();
 
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputText, setInputText] = useState("");
   const [showSettings, setShowSettings] = useState(false);
+  const [showExportMenu, setShowExportMenu] = useState(false);
+  const [isEditingTitle, setIsEditingTitle] = useState(false);
+  const [titleDraft, setTitleDraft] = useState("");
   const [selectedModelId, setSelectedModelId] = useState<string>("");
 
   const [systemPrompt, setSystemPrompt] = useState(SYSTEM_PROMPT_PRESETS[0].prompt);
@@ -68,49 +87,33 @@ export default function ChatPage() {
   const [maxTokens, setMaxTokens] = useState(512);
 
   const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
-  const [isHydrated, setIsHydrated] = useState(false);
 
-  // UI scroll state (only for rendering buttons, NOT for scroll logic)
+  // UI scroll state (only for rendering buttons)
   const [showScrollToBottom, setShowScrollToBottom] = useState(false);
   const [showScrollToTop, setShowScrollToTop] = useState(false);
 
   const chatContainerRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-
-  // The ONLY source of truth for whether we should auto-scroll.
-  // This is a ref so it never causes re-renders and is always current.
   const userScrolledUpRef = useRef(false);
 
-  // Load chat history and params from localStorage on mount
+  // Load hyperparameters from localStorage
   useEffect(() => {
     try {
-      const savedMessages = localStorage.getItem("neurion_chat_messages");
-      if (savedMessages) setMessages(JSON.parse(savedMessages));
       const savedPrompt = localStorage.getItem("neurion_system_prompt");
       if (savedPrompt) setSystemPrompt(savedPrompt);
       const savedTemp = localStorage.getItem("neurion_temperature");
       if (savedTemp) setTemperature(parseFloat(savedTemp));
     } catch {
       // ignore
-    } finally {
-      setIsHydrated(true);
     }
   }, []);
 
   useEffect(() => {
-    if (!isHydrated) return;
-    try {
-      localStorage.setItem("neurion_chat_messages", JSON.stringify(messages));
-    } catch {}
-  }, [messages, isHydrated]);
-
-  useEffect(() => {
-    if (!isHydrated) return;
     try {
       localStorage.setItem("neurion_system_prompt", systemPrompt);
       localStorage.setItem("neurion_temperature", temperature.toString());
     } catch {}
-  }, [systemPrompt, temperature, isHydrated]);
+  }, [systemPrompt, temperature]);
 
   useEffect(() => {
     if (activeModel && !selectedModelId) {
@@ -122,26 +125,22 @@ export default function ChatPage() {
 
   // ─── Scroll helpers ───────────────────────────────────────────────────────
 
-  /** Returns true if the container is scrolled to within threshold of the bottom */
   const checkAtBottom = useCallback((): boolean => {
     const el = chatContainerRef.current;
     if (!el) return true;
     return el.scrollHeight - el.scrollTop - el.clientHeight <= SCROLL_BOTTOM_THRESHOLD;
   }, []);
 
-  /** Instantly scroll to the absolute bottom (no animation, used internally) */
   const snapToBottom = useCallback(() => {
     const el = chatContainerRef.current;
     if (!el) return;
     el.scrollTop = el.scrollHeight;
   }, []);
 
-  /** Smooth scroll to bottom (used when the user clicks the button) */
   const smoothScrollToBottom = useCallback(() => {
     const el = chatContainerRef.current;
     if (!el) return;
     el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
-    // Re-enable auto-scroll as the user has opted back in
     userScrolledUpRef.current = false;
     setShowScrollToBottom(false);
   }, []);
@@ -152,21 +151,14 @@ export default function ChatPage() {
     el.scrollTo({ top: 0, behavior: "smooth" });
   }, []);
 
-  /**
-   * This is the ONLY scroll event handler. It runs on every native scroll.
-   * Its only job: update the "user scrolled up" flag and button visibility.
-   * It does NOT trigger any auto-scroll — that's done separately below.
-   */
   const handleScroll = useCallback(() => {
     const el = chatContainerRef.current;
     if (!el) return;
     const atBottom = checkAtBottom();
 
-    // If user scrolled up, lock auto-scroll immediately
     if (!atBottom) {
       userScrolledUpRef.current = true;
     } else {
-      // User manually scrolled back down to the bottom — re-enable auto-scroll
       userScrolledUpRef.current = false;
     }
 
@@ -174,30 +166,17 @@ export default function ChatPage() {
     setShowScrollToTop(el.scrollTop > 200);
   }, [checkAtBottom]);
 
-  // ─── Auto-scroll logic ────────────────────────────────────────────────────
-
-  // When NEW MESSAGES are added (e.g. user sent, or AI response finished),
-  // always scroll to bottom and reset the lock
+  // When message count changes (session switched, message sent), scroll to bottom
   useEffect(() => {
     if (messages.length === 0) return;
     userScrolledUpRef.current = false;
-    // Use requestAnimationFrame to let the DOM paint first
     requestAnimationFrame(() => {
       snapToBottom();
       setShowScrollToBottom(false);
     });
-  }, [messages.length, snapToBottom]); // Only fire when message COUNT changes, not content
+  }, [messages.length, snapToBottom]);
 
-  // When STREAMED CONTENT changes (token-by-token during generation),
-  // ONLY scroll if the user has NOT scrolled up
-  useEffect(() => {
-    if (userScrolledUpRef.current) return; // User is reading — do not scroll
-    requestAnimationFrame(() => {
-      snapToBottom();
-    });
-  }, [snapToBottom]); // This runs on every render during streaming via the component update
-
-  // ─── Inference stream ─────────────────────────────────────────────────────
+  // ─── Inference Stream ─────────────────────────────────────────────────────
 
   const {
     isStreaming,
@@ -220,7 +199,7 @@ export default function ChatPage() {
     },
   });
 
-  // Trigger the streaming content auto-scroll effect
+  // Streaming auto-scroll logic
   useEffect(() => {
     if (!isStreaming) return;
     if (userScrolledUpRef.current) return;
@@ -242,7 +221,6 @@ export default function ChatPage() {
     const newHistory = [...messages, userMsg];
     setMessages(newHistory);
     setInputText("");
-    // Reset scroll lock whenever user sends a new message
     userScrolledUpRef.current = false;
 
     sendPrompt({
@@ -268,23 +246,55 @@ export default function ChatPage() {
     setTimeout(() => setCopiedIndex(null), 2000);
   };
 
-  const handleClearChat = () => {
-    if (isStreaming) stopStreaming();
-    setMessages([]);
-    userScrolledUpRef.current = false;
-    try { localStorage.removeItem("neurion_chat_messages"); } catch {}
+  const handleSaveTitle = () => {
+    if (activeSession && titleDraft.trim()) {
+      renameSession(activeSession.id, titleDraft.trim());
+    }
+    setIsEditingTitle(false);
   };
 
-  // ─── Render ───────────────────────────────────────────────────────────────
-
   return (
-    <div className="flex h-full w-full overflow-hidden">
+    <div className="flex h-full w-full overflow-hidden" onClick={() => setShowExportMenu(false)}>
       <div className="flex flex-1 flex-col h-full bg-[#07090d] relative overflow-hidden">
-
         {/* Top HUD Bar */}
-        <div className="flex items-center justify-between border-b border-[rgba(238,242,248,0.08)] bg-[#10161f]/80 px-4 py-2.5 backdrop-blur-md z-10">
-          <div className="flex items-center space-x-3">
-            <div className="flex items-center space-x-2">
+        <div className="flex items-center justify-between border-b border-[rgba(238,242,248,0.08)] bg-[#10161f]/80 px-3 md:px-5 py-2.5 backdrop-blur-md z-20 gap-3">
+          {/* Left Side: Active Session Title & Model Picker */}
+          <div className="flex items-center space-x-2 sm:space-x-3 min-w-0">
+            {/* Session Title Rename / Display */}
+            <div className="hidden sm:flex items-center space-x-1.5 min-w-0 pr-2 border-r border-[rgba(238,242,248,0.08)]">
+              {isEditingTitle ? (
+                <div className="flex items-center space-x-1">
+                  <input
+                    type="text"
+                    value={titleDraft}
+                    onChange={(e) => setTitleDraft(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && handleSaveTitle()}
+                    onBlur={handleSaveTitle}
+                    autoFocus
+                    className="px-2 py-0.5 rounded bg-[#07090d] border border-[#4c8dff] text-xs text-[#eef2f8] focus:outline-none font-sans"
+                  />
+                  <button onClick={handleSaveTitle} className="p-1 text-[#34d399]">
+                    <Check className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setTitleDraft(activeSession?.title || "New Chat");
+                    setIsEditingTitle(true);
+                  }}
+                  className="flex items-center space-x-1 text-xs font-semibold text-[#eef2f8] hover:text-[#9fe0ff] transition truncate max-w-[160px] group"
+                  title="Rename Conversation"
+                >
+                  <span className="truncate">{activeSession?.title || "New Chat"}</span>
+                  <Edit2 className="w-3 h-3 text-[#8a93a3] opacity-0 group-hover:opacity-100 shrink-0" />
+                </button>
+              )}
+            </div>
+
+            {/* Model Selector Dropdown */}
+            <div className="flex items-center space-x-1.5 shrink-0">
               <HardDrive className="h-4 w-4 text-[#4c8dff]" />
               <select
                 value={selectedModelId}
@@ -294,10 +304,10 @@ export default function ChatPage() {
                   if (newId && activeModel?.id !== newId) loadModel(newId);
                 }}
                 disabled={models.length === 0 || isStreaming}
-                className="bg-[#10161f] border border-[rgba(238,242,248,0.12)] rounded-lg px-2.5 py-1 text-xs font-mono font-medium text-[#eef2f8] focus:outline-none focus:border-[#4c8dff] cursor-pointer disabled:opacity-50"
+                className="bg-[#10161f] border border-[rgba(238,242,248,0.12)] rounded-lg px-2 py-1 text-xs font-mono font-medium text-[#eef2f8] focus:outline-none focus:border-[#4c8dff] cursor-pointer disabled:opacity-50 max-w-[180px] sm:max-w-xs truncate"
               >
                 {models.length === 0 ? (
-                  <option value="">No models detected in D:/models</option>
+                  <option value="">No models detected</option>
                 ) : (
                   models.map((m) => (
                     <option key={m.id} value={m.id}>
@@ -307,16 +317,19 @@ export default function ChatPage() {
                 )}
               </select>
             </div>
+
             {loadingModelId && (
-              <span className="text-xs text-[#9fe0ff] font-mono flex items-center gap-1.5 animate-pulse">
-                <Cpu className="w-3.5 h-3.5 animate-spin text-[#4c8dff]" /> Loading into RAM...
+              <span className="hidden md:flex text-xs text-[#9fe0ff] font-mono items-center gap-1.5 animate-pulse shrink-0">
+                <Cpu className="w-3.5 h-3.5 animate-spin text-[#4c8dff]" /> Loading RAM...
               </span>
             )}
           </div>
 
-          <div className="flex items-center space-x-2">
+          {/* Right Controls HUD */}
+          <div className="flex items-center space-x-1.5 sm:space-x-2 shrink-0">
+            {/* Live Stats Pill */}
             {liveStats && (
-              <div className="hidden sm:flex items-center space-x-2 px-2.5 py-1 rounded-md bg-[#4c8dff]/10 border border-[#4c8dff]/30 text-[#9fe0ff] font-mono text-[11px]">
+              <div className="hidden lg:flex items-center space-x-2 px-2.5 py-1 rounded-md bg-[#4c8dff]/10 border border-[#4c8dff]/30 text-[#9fe0ff] font-mono text-[11px]">
                 <Zap className="w-3 h-3 text-[#4c8dff]" />
                 <span>{liveStats.tokens_per_sec} tps</span>
                 <span className="text-[#4c8dff]/40">|</span>
@@ -324,20 +337,79 @@ export default function ChatPage() {
                 <span>{liveStats.ttft_ms}ms TTFT</span>
               </div>
             )}
+
+            {/* Quick New Chat Button */}
+            <button
+              onClick={() => createSession()}
+              className="flex items-center space-x-1 px-2.5 py-1 rounded-lg text-xs font-mono font-medium bg-[#1c2634]/60 border border-[rgba(238,242,248,0.08)] text-[#8a93a3] hover:bg-[#1c2634] hover:text-[#eef2f8] transition"
+              title="New Conversation"
+            >
+              <Plus className="w-3.5 h-3.5 text-[#4c8dff]" />
+              <span className="hidden sm:inline">New</span>
+            </button>
+
+            {/* Export Menu Dropdown */}
+            <div className="relative">
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowExportMenu(!showExportMenu);
+                }}
+                className={`flex items-center space-x-1 px-2.5 py-1 rounded-lg text-xs font-mono font-medium border transition-colors ${
+                  showExportMenu
+                    ? "bg-[#4c8dff]/20 text-[#9fe0ff] border-[#4c8dff]/40"
+                    : "bg-[#1c2634]/60 text-[#8a93a3] border-[rgba(238,242,248,0.08)] hover:bg-[#1c2634] hover:text-[#eef2f8]"
+                }`}
+                title="Export Conversation"
+              >
+                <Download className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Export</span>
+              </button>
+
+              {showExportMenu && (
+                <div className="absolute right-0 top-9 z-30 w-48 rounded-xl bg-[#10161f] border border-[rgba(238,242,248,0.12)] p-1.5 shadow-2xl space-y-1 animate-in fade-in">
+                  <button
+                    onClick={() => exportMarkdown()}
+                    className="w-full flex items-center space-x-2 px-3 py-2 rounded-lg text-xs text-[#eef2f8] hover:bg-[#1c2634] transition text-left"
+                  >
+                    <FileText className="w-4 h-4 text-[#4c8dff]" />
+                    <div>
+                      <div className="font-semibold font-sans">Markdown (.md)</div>
+                      <div className="text-[10px] text-[#8a93a3] font-mono">Formatted document</div>
+                    </div>
+                  </button>
+                  <button
+                    onClick={() => exportJson()}
+                    className="w-full flex items-center space-x-2 px-3 py-2 rounded-lg text-xs text-[#eef2f8] hover:bg-[#1c2634] transition text-left"
+                  >
+                    <FileJson className="w-4 h-4 text-[#34d399]" />
+                    <div>
+                      <div className="font-semibold font-sans">JSON (.json)</div>
+                      <div className="text-[10px] text-[#8a93a3] font-mono">Raw session object</div>
+                    </div>
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* Inference Parameters Button */}
             <button
               onClick={() => setShowSettings(!showSettings)}
-              className={`flex items-center space-x-1.5 px-2.5 py-1 rounded-lg text-xs font-mono font-medium border transition-colors ${
+              className={`flex items-center space-x-1 px-2.5 py-1 rounded-lg text-xs font-mono font-medium border transition-colors ${
                 showSettings
                   ? "bg-[#4c8dff]/20 text-[#9fe0ff] border-[#4c8dff]/40 shadow-[0_0_10px_rgba(76,141,255,0.2)]"
                   : "bg-[#1c2634]/60 text-[#8a93a3] border-[rgba(238,242,248,0.08)] hover:bg-[#1c2634] hover:text-[#eef2f8]"
               }`}
+              title="Inference Parameters"
             >
               <Sliders className="w-3.5 h-3.5" />
-              <span>Params</span>
+              <span className="hidden sm:inline">Params</span>
             </button>
+
+            {/* Clear Chat Button */}
             <button
-              onClick={handleClearChat}
-              title="Clear conversation history"
+              onClick={clearActiveSessionMessages}
+              title="Clear conversation messages"
               className="p-1.5 rounded-lg text-[#8a93a3] hover:bg-[#1c2634] hover:text-[#eef2f8] border border-[rgba(238,242,248,0.08)]"
             >
               <RotateCcw className="w-3.5 h-3.5" />
@@ -345,10 +417,17 @@ export default function ChatPage() {
           </div>
         </div>
 
-        {/* Server Offline Banner */}
+        {/* Live Context Window Usage Bar */}
+        <ContextUsageBar
+          messages={messages}
+          systemPrompt={systemPrompt}
+          maxTokens={activeModel?.context_length || 4096}
+        />
+
+        {/* Server Offline Warning Banner */}
         {!isServerOnline && (
           <div className="bg-amber-500/10 border-b border-amber-500/20 px-4 py-2 text-xs text-amber-300 font-mono flex items-center space-x-2">
-            <AlertCircle className="w-4 h-4 text-amber-400" />
+            <AlertCircle className="w-4 h-4 text-amber-400 shrink-0" />
             <span>
               Backend server is offline. Run <code>pnpm dev:server</code> on port 8000.
             </span>
@@ -443,7 +522,7 @@ export default function ChatPage() {
                 </div>
               ))}
 
-              {/* Live Streaming Bubble */}
+              {/* Live Streaming Chunk */}
               {isStreaming && (
                 <div className="flex space-x-3.5 max-w-4xl mx-auto justify-start">
                   <div className="w-8 h-8 rounded-lg bg-[#4c8dff]/20 border border-[#4c8dff]/40 flex items-center justify-center shrink-0 shadow-[0_0_12px_rgba(76,141,255,0.3)] mt-1 animate-pulse">
@@ -634,4 +713,3 @@ export default function ChatPage() {
     </div>
   );
 }
-
