@@ -4,12 +4,19 @@ import { useState, useEffect, useCallback } from "react";
 import { ModelInfo, SystemStatus } from "@neurionforge/shared-types";
 import { api } from "@/lib/api";
 
+export interface ScanResult {
+  success: boolean;
+  count: number;
+  error?: string;
+}
+
 export function useModels() {
   const [models, setModels] = useState<ModelInfo[]>([]);
   const [activeModel, setActiveModel] = useState<ModelInfo | null>(null);
   const [systemStatus, setSystemStatus] = useState<SystemStatus | null>(null);
   const [isServerOnline, setIsServerOnline] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [isScanning, setIsScanning] = useState<boolean>(false);
   const [loadingModelId, setLoadingModelId] = useState<string | null>(null);
   const [deletingModelId, setDeletingModelId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -35,25 +42,54 @@ export function useModels() {
         setActiveModel(loaded || null);
       }
       setError(null);
+      return !!health; // true = online
     } catch (err: any) {
       setIsServerOnline(false);
       setError(err.message || "Failed to communicate with local server");
+      return false; // offline
     } finally {
       setIsLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    fetchStatusAndModels();
-    const interval = setInterval(fetchStatusAndModels, 3500);
+    let timeoutId: ReturnType<typeof setTimeout>;
+    let consecutiveFailures = 0;
+    let cancelled = false;
+
+    const NORMAL_INTERVAL = 3500;
+    const MAX_INTERVAL = 30000;
+
+    const schedule = async () => {
+      if (cancelled) return;
+      const online = await fetchStatusAndModels();
+      if (cancelled) return;
+
+      if (online) {
+        consecutiveFailures = 0;
+      } else {
+        consecutiveFailures += 1;
+      }
+
+      // Back-off: 3.5s → 7s → 14s → 30s (capped) when offline
+      const nextDelay = online
+        ? NORMAL_INTERVAL
+        : Math.min(NORMAL_INTERVAL * Math.pow(2, consecutiveFailures - 1), MAX_INTERVAL);
+      timeoutId = setTimeout(schedule, nextDelay);
+    };
 
     const onFocus = () => {
-      fetchStatusAndModels();
+      clearTimeout(timeoutId);
+      consecutiveFailures = 0;
+      schedule();
     };
+
+    schedule();
     window.addEventListener("focus", onFocus);
 
     return () => {
-      clearInterval(interval);
+      cancelled = true;
+      clearTimeout(timeoutId);
       window.removeEventListener("focus", onFocus);
     };
   }, [fetchStatusAndModels]);
@@ -100,17 +136,28 @@ export function useModels() {
     }
   };
 
-  const rescan = async () => {
-    setIsLoading(true);
+  const rescan = async (): Promise<ScanResult> => {
+    setIsScanning(true);
     setError(null);
     try {
-      const list = await api.scanModels();
+      const [list, health] = await Promise.all([
+        api.scanModels(),
+        api.getHealth().catch(() => null),
+      ]);
       setModels(list);
       const loaded = list.find((m) => m.loaded);
       setActiveModel(loaded || null);
+      setIsServerOnline(true);
+      if (health) {
+        setSystemStatus(health);
+      }
+      return { success: true, count: list.length };
     } catch (err: any) {
-      setError(err.message || "Failed to scan models directory");
+      const msg = err.message || "Failed to scan models directory";
+      setError(msg);
+      return { success: false, count: 0, error: msg };
     } finally {
+      setIsScanning(false);
       setIsLoading(false);
     }
   };
@@ -125,6 +172,7 @@ export function useModels() {
     systemStatus,
     isServerOnline,
     isLoading,
+    isScanning,
     loadingModelId,
     deletingModelId,
     error,

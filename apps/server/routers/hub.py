@@ -21,3 +21,23 @@ async def list_repo_files(
         return hub_service.list_gguf_files(repo_id=repo_id)
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
+
+@router.get("/pytorch-search", response_model=List[Dict[str, Any]])
+async def search_pytorch_models(
+    q: str = Query(default="", description="Search query for PyTorch/safetensors models"),
+    limit: int = Query(default=20, ge=1, le=50, description="Max results to return")
+):
+    """Search HuggingFace Hub for full PyTorch/transformers model repos (non-GGUF).
+    Returns repos suitable for fine-tuning and GGUF conversion."""
+    return hub_service.search_pytorch_models(query=q, limit=limit)
+
+@router.get("/pytorch-info", response_model=Dict[str, Any])
+async def get_pytorch_repo_info(
+    repo_id: str = Query(..., description="HuggingFace repo ID e.g. Qwen/Qwen2.5-0.5B-Instruct")
+):
+    """Get detailed info (size, files, download status) for a specific PyTorch model repo."""
+    try:
+        return hub_service.get_pytorch_repo_info(repo_id=repo_id)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+

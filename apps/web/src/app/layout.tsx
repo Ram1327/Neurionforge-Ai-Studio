@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 import { AppShell } from "@/components/AppShell";
 import { ChatProvider } from "@/context/ChatContext";
+import { DownloadProvider } from "@/context/DownloadContext";
 
 export const metadata: Metadata = {
   title: "AI Studio — NeurionForge | 100% Local Inference & Fine-Tuning",
@@ -17,8 +18,6 @@ export const metadata: Metadata = {
     ],
     shortcut: "/icon.svg",
   },
-
-
 };
 
 export default function RootLayout({
@@ -27,11 +26,16 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className="dark">
-      <body className="antialiased bg-[#07090d] text-[#eef2f8] min-h-screen selection:bg-[#4c8dff]/30 selection:text-[#9fe0ff]">
-        <ChatProvider>
-          <AppShell>{children}</AppShell>
-        </ChatProvider>
+    <html lang="en" className="dark" suppressHydrationWarning>
+      <body
+        className="antialiased bg-[#07090d] text-[#eef2f8] min-h-screen selection:bg-[#4c8dff]/30 selection:text-[#9fe0ff]"
+        suppressHydrationWarning
+      >
+        <DownloadProvider>
+          <ChatProvider>
+            <AppShell>{children}</AppShell>
+          </ChatProvider>
+        </DownloadProvider>
       </body>
     </html>
   );

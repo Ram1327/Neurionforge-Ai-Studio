@@ -1,17 +1,39 @@
-# NeurionForge AI Studio â€” API Contract & Specification
+# NeurionForge AI Studio — API Contract & Specification
 
-> **Host:** `http://localhost:8000` (FastAPI Server)  
-> **WebSocket:** `ws://localhost:8000/ws`  
+> **Host:** `http://localhost:8000` (FastAPI Server)
+> **WebSocket:** `ws://localhost:8000`
 > **Client Types Package:** `@neurionforge/shared-types`
+>
+> **IMPORTANT:** This is the canonical contract between `apps/web` and `apps/server`.
+> Do not change a request/response shape in either app without updating this file first.
+> When in doubt, this file wins.
 
 ---
 
-## 1. Inference Engine
+## 1. System & Health
+
+### `GET /health`
+System diagnostics and hardware report.
+
+#### Response
+```json
+{
+  "status": "ok",
+  "models_dir": "D:/models",
+  "active_model": null,
+  "cpu_threads": 8,
+  "gpu_available": false
+}
+```
+
+---
+
+## 2. Inference Engine
 
 ### WebSocket: `/ws/inference`
-Stream token-by-token completions with streaming performance metrics.
+Stream token-by-token completions with performance metrics.
 
-#### Client Request (Initial message)
+#### Client sends (initial message)
 ```json
 {
   "model_id": "qwen2.5-1.5b-instruct-q4_k_m.gguf",
@@ -25,14 +47,13 @@ Stream token-by-token completions with streaming performance metrics.
 }
 ```
 
-#### Server Streaming Responses
+#### Server streams (newline-delimited JSON)
 ```json
 { "token": "Local", "finished": false }
 { "token": " LLMs", "finished": false }
-{ "token": " execute", "finished": false }
 ```
 
-#### Server Final Chunk
+#### Server final chunk
 ```json
 {
   "token": "",
@@ -48,10 +69,10 @@ Stream token-by-token completions with streaming performance metrics.
 
 ---
 
-## 2. Model Management
+## 3. Model Management
 
 ### `GET /models`
-List available models in `MODELS_DIR` (e.g. `D:/models`).
+List available GGUF models scanned from `MODELS_DIR` (`D:/models`).
 
 #### Response
 ```json
@@ -69,45 +90,155 @@ List available models in `MODELS_DIR` (e.g. `D:/models`).
 ]
 ```
 
-### `POST /models/{id}/load`
-Load model into RAM/VRAM cache.
+### `POST /models/scan`
+Re-scan `MODELS_DIR` for GGUF files. Returns updated model list.
 
-#### Response
+### `POST /models/{id}/load`
+Load GGUF model into RAM/VRAM.
 ```json
-{
-  "id": "qwen2.5-1.5b-instruct-q4_k_m.gguf",
-  "loaded": true,
-  "load_time_sec": 0.85
-}
+{ "id": "qwen2.5-1.5b-instruct-q4_k_m.gguf", "loaded": true, "load_time_sec": 0.85 }
 ```
 
 ### `POST /models/{id}/unload`
-Unload currently loaded model and free memory.
+Unload model and free memory.
+
+### `DELETE /models/{id}`
+Delete GGUF file from disk.
+
+### `GET /models/pytorch` *(PLANNED — not yet implemented)*
+List PyTorch / HuggingFace model folders downloaded to `D:/models/pytorch/`.
 
 #### Response
 ```json
-{
-  "id": "qwen2.5-1.5b-instruct-q4_k_m.gguf",
-  "loaded": false,
-  "load_time_sec": 0.0
-}
+[
+  {
+    "id": "Qwen--Qwen2.5-1.5B-Instruct",
+    "repo_id": "Qwen/Qwen2.5-1.5B-Instruct",
+    "path": "D:/models/pytorch/Qwen--Qwen2.5-1.5B-Instruct",
+    "size_gb": 3.1,
+    "downloaded_at": "2026-08-19T20:00:00Z"
+  }
+]
 ```
 
 ---
 
-## 3. Fine-Tuning & Adapter Management
+## 4. HuggingFace Hub
 
-### `POST /jobs/train`
-Start a LoRA/QLoRA training job in the background.
+### `GET /hub/search?q={query}&limit={n}`
+Search HuggingFace Hub for model repos.
+
+#### Response
+```json
+[
+  {
+    "id": "Qwen/Qwen2.5-1.5B-Instruct",
+    "name": "Qwen2.5-1.5B-Instruct",
+    "downloads": 150000,
+    "likes": 800,
+    "tags": ["text-generation", "pytorch"],
+    "has_gguf": true
+  }
+]
+```
+
+### `GET /hub/files?repo_id={repo_id}`
+List GGUF files available in a specific HuggingFace repo.
+
+#### Response
+```json
+[
+  {
+    "filename": "qwen2.5-1.5b-instruct-q4_k_m.gguf",
+    "size_bytes": 1200000000,
+    "quantization": "Q4_K_M"
+  }
+]
+```
+
+### `GET /hub/pytorch-files?repo_id={repo_id}` *(PLANNED — not yet implemented)*
+List PyTorch weight files available in a HuggingFace repo (for fine-tuning downloads).
+
+---
+
+## 5. Downloads
+
+### `GET /downloads`
+List all download jobs (active, queued, completed, cancelled, failed).
+
+#### Response
+```json
+[
+  {
+    "job_id": "dl_abc123",
+    "repo_id": "Qwen/Qwen2.5-1.5B-Instruct",
+    "filename": "qwen2.5-1.5b-instruct-q4_k_m.gguf",
+    "rfilename": "qwen2.5-1.5b-instruct-q4_k_m.gguf",
+    "status": "running",
+    "bytes_downloaded": 500000000,
+    "total_bytes": 1200000000,
+    "percent": 41.7,
+    "speed_mbps": 8.2,
+    "eta_sec": 85
+  }
+]
+```
+
+### `POST /downloads/start`
+Start a download job. Currently supports GGUF files only.
+**PLANNED:** Extend to support `model_type: "gguf" | "pytorch"` and custom `dest_path`.
+
+#### Request
+```json
+{
+  "repo_id": "Qwen/Qwen2.5-1.5B-Instruct",
+  "filename": "qwen2.5-1.5b-instruct-q4_k_m.gguf",
+  "rfilename": "qwen2.5-1.5b-instruct-q4_k_m.gguf"
+}
+```
+
+#### Future request shape (PLANNED)
+```json
+{
+  "repo_id": "Qwen/Qwen2.5-1.5B-Instruct",
+  "filename": "qwen2.5-1.5b-instruct-q4_k_m.gguf",
+  "model_type": "gguf",
+  "dest_path": "D:/models/"
+}
+```
+
+#### Response
+```json
+{ "job_id": "dl_abc123", "status": "queued" }
+```
+
+### `POST /downloads/{job_id}/cancel`
+Cancel an active download.
+
+### `DELETE /downloads/{job_id}`
+Remove a completed/cancelled download job from history.
+
+### WebSocket: `/downloads/ws/{job_id}`
+Stream download progress events for a specific job. Emits the same `DownloadJob` shape as `GET /downloads` items.
+
+---
+
+## 6. Fine-Tuning & Adapters
+
+### `GET /finetune/jobs`
+List all training jobs.
+
+### `POST /finetune/jobs`
+Start a LoRA/QLoRA training job.
 
 #### Request
 ```json
 {
   "base_model_id": "Qwen/Qwen2.5-1.5B-Instruct",
-  "dataset_id": "toy_dataset.jsonl",
-  "adapter_name": "qwen-1.5b-neurionforge-v0",
-  "lora_rank": 8,
-  "lora_alpha": 16,
+  "dataset_id": "my-dataset-id",
+  "adapter_name": "qwen-neurion-lora-v1",
+  "lora_rank": 16,
+  "lora_alpha": 32,
   "learning_rate": 0.0002,
   "epochs": 3,
   "batch_size": 2
@@ -116,20 +247,25 @@ Start a LoRA/QLoRA training job in the background.
 
 #### Response
 ```json
-{
-  "job_id": "job_01j7h8k9",
-  "status": "queued",
-  "created_at": "2026-08-16T22:30:00Z"
-}
+{ "status": "queued", "job": { "job_id": "job_abc123", "status": "queued", ... } }
 ```
 
-### WebSocket: `/ws/jobs/{job_id}/logs`
-Stream training progress, epoch step, and loss metrics.
+### `GET /finetune/jobs/{job_id}`
+Get a single training job.
 
-#### Server Messages
+### `POST /finetune/jobs/{job_id}/cancel`
+Cancel a running job.
+
+### `DELETE /finetune/jobs/{job_id}`
+Delete a job record.
+
+### WebSocket: `/finetune/ws/{job_id}`
+Stream training progress (step, loss, epoch, status).
+
+#### Server messages
 ```json
 {
-  "job_id": "job_01j7h8k9",
+  "job_id": "job_abc123",
   "step": 12,
   "total_steps": 30,
   "epoch": 1.2,
@@ -139,6 +275,10 @@ Stream training progress, epoch step, and loss metrics.
 }
 ```
 
+---
+
+## 7. Adapters
+
 ### `GET /adapters`
 List saved LoRA adapters.
 
@@ -146,30 +286,91 @@ List saved LoRA adapters.
 ```json
 [
   {
-    "id": "qwen-1.5b-neurionforge-v0",
-    "name": "qwen-1.5b-neurionforge-v0",
+    "id": "qwen-neurion-lora-v1",
+    "name": "qwen-neurion-lora-v1",
     "base_model_id": "Qwen/Qwen2.5-1.5B-Instruct",
-    "path": "apps/server/adapters/qwen-1.5b-neurionforge-v0",
-    "created_at": "2026-08-16T22:45:00Z",
-    "size_mb": 18.4
+    "path": "apps/server/adapters/qwen-neurion-lora-v1",
+    "created_at": "2026-08-19T20:00:00Z",
+    "size_mb": 18.4,
+    "status": "completed"
   }
 ]
 ```
 
+### `GET /adapters/{id}`
+Get a single adapter.
+
+### `DELETE /adapters/{id}`
+Delete adapter from disk.
+
+### `POST /adapters/{id}/test-chat`
+Test-chat with base model + adapter loaded.
+
+#### Request
+```json
+{
+  "messages": [{ "role": "user", "content": "Hello!" }],
+  "max_tokens": 128,
+  "temperature": 0.7
+}
+```
+
 ---
 
-## 4. System & Health
+## 8. Datasets
 
-### `GET /health`
-System diagnostics and hardware report.
+### `GET /datasets`
+List uploaded datasets.
+
+### `POST /datasets/upload`
+Upload a JSONL dataset.
+```json
+{ "name": "my-dataset", "content": "jsonl string..." }
+```
+
+### `POST /datasets/validate`
+Validate JSONL format before training.
+```json
+{ "content": "jsonl string..." }
+```
+
+### `GET /datasets/{id}`
+Get a single dataset.
+
+### `DELETE /datasets/{id}`
+Delete a dataset.
+
+---
+
+## 9. Conversion (PyTorch ? GGUF)
+
+### `POST /convert/to-gguf`
+Start a PyTorch ? GGUF conversion job.
+
+#### Request
+```json
+{
+  "base_model_id": "Qwen/Qwen2.5-1.5B-Instruct",
+  "adapter_id": "qwen-neurion-lora-v1",
+  "quantization": "Q4_K_M",
+  "output_name": "qwen-neurion-lora-v1-q4.gguf"
+}
+```
+`adapter_id` is optional — omit to convert the base model without a LoRA adapter.
 
 #### Response
 ```json
-{
-  "status": "ok",
-  "models_dir": "D:/models",
-  "active_model": null,
-  "cpu_threads": 8,
-  "gpu_available": false
-}
+{ "status": "queued", "job": { "job_id": "conv_abc123", ... } }
 ```
+
+### `GET /convert/jobs`
+List all conversion jobs.
+
+### `GET /convert/jobs/{job_id}`
+Get a single conversion job status.
+
+### `POST /convert/pytorch/download`
+*(Legacy — being removed. Use `/downloads/start` with `model_type: "pytorch"` instead.)*
+
+### `POST /convert/pytorch/cancel/{job_id}`
+Cancel a PyTorch download started via the legacy endpoint.

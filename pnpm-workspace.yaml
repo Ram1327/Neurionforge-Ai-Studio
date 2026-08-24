@@ -2,4 +2,5 @@ packages:
   - 'apps/web'
   - 'packages/*'
 allowBuilds:
-  sharp: set this to true or false
+  '@sentry/cli': true
+  sharp: true

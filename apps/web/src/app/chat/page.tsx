@@ -115,13 +115,15 @@ export default function ChatPage() {
     } catch {}
   }, [systemPrompt, temperature]);
 
+  const runnableModels = models.filter((m) => m.format !== "pytorch" && !m.is_mmproj);
+
   useEffect(() => {
     if (activeModel && !selectedModelId) {
       setSelectedModelId(activeModel.id);
-    } else if (models.length > 0 && !selectedModelId) {
-      setSelectedModelId(models[0].id);
+    } else if (runnableModels.length > 0 && (!selectedModelId || !runnableModels.some((m) => m.id === selectedModelId))) {
+      setSelectedModelId(runnableModels[0].id);
     }
-  }, [activeModel, models, selectedModelId]);
+  }, [activeModel, runnableModels, selectedModelId]);
 
   // ─── Scroll helpers ───────────────────────────────────────────────────────
 
@@ -303,13 +305,13 @@ export default function ChatPage() {
                   setSelectedModelId(newId);
                   if (newId && activeModel?.id !== newId) loadModel(newId);
                 }}
-                disabled={models.length === 0 || isStreaming}
+                disabled={runnableModels.length === 0 || isStreaming}
                 className="bg-[#10161f] border border-[rgba(238,242,248,0.12)] rounded-lg px-2 py-1 text-xs font-mono font-medium text-[#eef2f8] focus:outline-none focus:border-[#4c8dff] cursor-pointer disabled:opacity-50 max-w-[180px] sm:max-w-xs truncate"
               >
-                {models.length === 0 ? (
-                  <option value="">No models detected</option>
+                {runnableModels.length === 0 ? (
+                  <option value="">No runnable GGUF models</option>
                 ) : (
-                  models.map((m) => (
+                  runnableModels.map((m) => (
                     <option key={m.id} value={m.id}>
                       {m.name} ({m.quantization}) {m.loaded ? "✓ Loaded" : ""}
                     </option>

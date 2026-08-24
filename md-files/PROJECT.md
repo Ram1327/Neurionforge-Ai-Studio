@@ -110,18 +110,23 @@ Full details in `docs/api-contract.md`. When in doubt, that file wins.
 
 ## 6. Roadmap (phases — see TASKS.md for the breakdown)
 
-| Phase | Scope |
-|---|---|
-| 0 | Repo setup, monorepo scaffold, verify llama.cpp inference + LoRA fine-tuning from CLI scripts |
-| 1 | Inference Studio — model manager, streaming chat UI, controls |
-| 2 | Fine-Tuning Studio — dataset builder, training job runner, adapter management |
-| 3 | Polish — RAG, quantization pipeline, model comparison, Tauri packaging |
-| 4 | Agent Platform — chat + agent mode, terminal tool-calling, diff review panel |
+| Phase | Scope | Status |
+|---|---|---|
+| 0 | Repo setup, monorepo scaffold, verify llama.cpp inference + LoRA fine-tuning from CLI | ✅ Complete |
+| 1 | Inference Studio — model manager, streaming chat UI, controls | ✅ Complete |
+| 2 | Fine-Tuning Studio — dataset builder, training job runner, adapter management | ✅ Complete |
+| 2.5 | Bug fixes — GGUF download regression, remove auto-download UX, polling back-off | 🔄 In progress |
+| 3 | Unified Hub Downloader (GGUF + PyTorch), Model Manager upgrade, improved convert UI | 📋 Planned |
+| 3+ | RAG, model comparison, Tauri desktop packaging | 📋 Later |
+| 4 | Agent Platform — chat + agent mode, terminal tool-calling, diff review panel | 📋 Future |
 
 ## 7. Ground rules for any AI agent working on this repo
 
-- Stay inside your own app folder (`apps/web` or `apps/server`). Never edit the other side's code — propose the change in words and let that side's agent/human make it.
-- Don't invent features, endpoints, or tech-stack swaps that aren't in this file or `DECISIONS.md`. Flag it and ask rather than assuming.
+- Read `CURRENT_STATE.md` **before** assuming anything is already built or deployed. It is the source of truth.
+- Read `DECISIONS.md` before making technical choices — many things are already decided. Append new decisions rather than silently reversing old ones.
+- Stay inside your own app folder (`apps/web` or `apps/server`). Never edit the other side's code — propose the change and let that side's agent or the human make it.
+- The seam between web and server is `docs/api-contract.md`. Do not add an API call on the frontend for an endpoint that isn't in that file. Do not add an endpoint on the server without updating that file.
+- Don't invent features, endpoints, or tech-stack swaps that aren't in `PROJECT.md` or `DECISIONS.md`. Flag and ask rather than assuming.
 - Don't introduce a paid service (API, cloud GPU, hosted model) without flagging it — cost is a hard constraint.
-- Check `CURRENT_STATE.md` before assuming anything is already built or deployed.
-- See `SOUL.md` for who this project is for and why these files exist at all.
+- This is a **NeurionForge product** — the UI must feel premium and consistent with the brand.
+

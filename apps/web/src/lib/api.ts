@@ -86,6 +86,13 @@ export const api = {
   listHubFiles: (repoId: string): Promise<GGUFFileInfo[]> =>
     fetchJson<GGUFFileInfo[]>(`/hub/files?repo_id=${encodeURIComponent(repoId)}`),
 
+  searchPytorchHub: (q: string = "", limit: number = 20): Promise<HubModelResult[]> =>
+    fetchJson<HubModelResult[]>(`/hub/pytorch-search?q=${encodeURIComponent(q)}&limit=${limit}`),
+
+  getPytorchRepoInfo: (repoId: string): Promise<Record<string, unknown>> =>
+    fetchJson<Record<string, unknown>>(`/hub/pytorch-info?repo_id=${encodeURIComponent(repoId)}`),
+
+
   startDownload: (repoId: string, filename: string, rfilename?: string): Promise<StartDownloadResponse> =>
     fetchJson<StartDownloadResponse>("/downloads/start", {
       method: "POST",
@@ -103,4 +110,102 @@ export const api = {
     fetchJson<{ job_id: string; deleted: boolean }>(`/downloads/${encodeURIComponent(jobId)}`, {
       method: "DELETE",
     }),
+
+  // Datasets (Phase 2)
+  getDatasets: (): Promise<import("@neurionforge/shared-types").Dataset[]> =>
+    fetchJson<import("@neurionforge/shared-types").Dataset[]>("/datasets"),
+
+  getDataset: (id: string): Promise<import("@neurionforge/shared-types").Dataset> =>
+    fetchJson<import("@neurionforge/shared-types").Dataset>(`/datasets/${encodeURIComponent(id)}`),
+
+  uploadDataset: (name: string, content: string): Promise<{ status: string; dataset: import("@neurionforge/shared-types").Dataset }> =>
+    fetchJson<{ status: string; dataset: import("@neurionforge/shared-types").Dataset }>("/datasets/upload", {
+      method: "POST",
+      body: JSON.stringify({ name, content }),
+    }),
+
+  validateDataset: (content: string): Promise<import("@neurionforge/shared-types").DatasetValidationResult> =>
+    fetchJson<import("@neurionforge/shared-types").DatasetValidationResult>("/datasets/validate", {
+      method: "POST",
+      body: JSON.stringify({ content }),
+    }),
+
+  deleteDataset: (id: string): Promise<{ id: string; deleted: boolean }> =>
+    fetchJson<{ id: string; deleted: boolean }>(`/datasets/${encodeURIComponent(id)}`, {
+      method: "DELETE",
+    }),
+
+  // Adapters (Phase 2)
+  getAdapters: (): Promise<import("@neurionforge/shared-types").AdapterInfo[]> =>
+    fetchJson<import("@neurionforge/shared-types").AdapterInfo[]>("/adapters"),
+
+  getAdapter: (id: string): Promise<import("@neurionforge/shared-types").AdapterInfo> =>
+    fetchJson<import("@neurionforge/shared-types").AdapterInfo>(`/adapters/${encodeURIComponent(id)}`),
+
+  deleteAdapter: (id: string): Promise<{ id: string; deleted: boolean }> =>
+    fetchJson<{ id: string; deleted: boolean }>(`/adapters/${encodeURIComponent(id)}`, {
+      method: "DELETE",
+    }),
+
+  testAdapterChat: (
+    adapterId: string,
+    messages: import("@neurionforge/shared-types").ChatMessage[],
+    maxTokens: number = 128,
+    temperature: number = 0.7
+  ): Promise<import("@neurionforge/shared-types").AdapterTestResponse> =>
+    fetchJson<import("@neurionforge/shared-types").AdapterTestResponse>(`/adapters/${encodeURIComponent(adapterId)}/test-chat`, {
+      method: "POST",
+      body: JSON.stringify({ messages, max_tokens: maxTokens, temperature }),
+    }),
+
+  // Fine-Tuning Jobs (Phase 2)
+  getTrainJobs: (): Promise<import("@neurionforge/shared-types").TrainJob[]> =>
+    fetchJson<import("@neurionforge/shared-types").TrainJob[]>("/finetune/jobs"),
+
+  getTrainJob: (jobId: string): Promise<import("@neurionforge/shared-types").TrainJob> =>
+    fetchJson<import("@neurionforge/shared-types").TrainJob>(`/finetune/jobs/${encodeURIComponent(jobId)}`),
+
+  startTrainJob: (
+    payload: import("@neurionforge/shared-types").TrainRequest
+  ): Promise<{ status: string; job: import("@neurionforge/shared-types").TrainJob }> =>
+    fetchJson<{ status: string; job: import("@neurionforge/shared-types").TrainJob }>("/finetune/jobs", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+
+  cancelTrainJob: (jobId: string): Promise<{ job_id: string; status: string; message: string }> =>
+    fetchJson<{ job_id: string; status: string; message: string }>(`/finetune/jobs/${encodeURIComponent(jobId)}/cancel`, {
+      method: "POST",
+    }),
+
+  deleteTrainJob: (jobId: string): Promise<{ job_id: string; deleted: boolean }> =>
+    fetchJson<{ job_id: string; deleted: boolean }>(`/finetune/jobs/${encodeURIComponent(jobId)}`, {
+      method: "DELETE",
+    }),
+
+  // Phase 3: PyTorch Download
+  downloadPytorchModel: (repoId: string): Promise<{ job_id: string; status: string; message: string }> =>
+    fetchJson<{ job_id: string; status: string; message: string }>("/convert/pytorch/download", {
+      method: "POST",
+      body: JSON.stringify({ repo_id: repoId }),
+    }),
+
+  cancelPytorchDownload: (jobId: string): Promise<{ job_id: string; cancelled: boolean }> =>
+    fetchJson<{ job_id: string; cancelled: boolean }>(`/convert/pytorch/cancel/${encodeURIComponent(jobId)}`, {
+      method: "POST",
+    }),
+
+  // Phase 3: GGUF Conversion
+  startConversion: (payload: import("@neurionforge/shared-types").ConvertRequest): Promise<{ status: string; job: import("@neurionforge/shared-types").ConvertJob }> =>
+    fetchJson<{ status: string; job: import("@neurionforge/shared-types").ConvertJob }>("/convert/to-gguf", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+
+  getConvertJob: (jobId: string): Promise<import("@neurionforge/shared-types").ConvertJob> =>
+    fetchJson<import("@neurionforge/shared-types").ConvertJob>(`/convert/jobs/${encodeURIComponent(jobId)}`),
+
+  listConvertJobs: (): Promise<import("@neurionforge/shared-types").ConvertJob[]> =>
+    fetchJson<import("@neurionforge/shared-types").ConvertJob[]>("/convert/jobs"),
 };
+

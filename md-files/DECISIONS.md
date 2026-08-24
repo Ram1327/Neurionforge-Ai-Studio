@@ -122,3 +122,32 @@ safety requirement, not a UX nicety — do not ship agent mode without it.
 **Decision:** Standardize Phase 0 verification on `Qwen2.5-1.5B-Instruct` (Q4_K_M GGUF for inference, HF base for PEFT LoRA training).
 **Why:** Optimal sweet spot (~1.1 GB disk, ~1.2 GB RAM) for fast CPU execution and low-resource fine-tuning verification before scaling up to larger models.
 
+---
+
+### 2026-08-19 — Remove auto-download from Fine-Tune Studio base model selector
+**Decision:** The Fine-Tune Studio base model selector will no longer show a hardcoded list of HuggingFace model IDs (e.g. Qwen2.5-0.5B, Llama-3.2-1B) or trigger an automatic PyTorch download when the user selects one of these models. Instead, it will only show PyTorch models that have already been explicitly downloaded by the user into `D:/models/pytorch/`. If none exist, it shows an empty state with a link to the Hub Downloader.
+**Why:** Auto-downloading multi-gigabyte model weights in the background as a side-effect of selecting a training config is bad UX — the user may not realize a download has started, may not have disk space, and has no way to review what they're downloading before it starts. Explicit download flow (user goes to Hub, searches, selects, and explicitly clicks Download) is the right pattern for a local-first app. This also removes hidden network calls on server-offline scenarios.
+
+---
+
+### 2026-08-19 — Unified Hub Downloader: support both GGUF and PyTorch
+**Decision:** The HuggingFace Hub browser/downloader will be redesigned to support both model formats in a single UI:
+- **GGUF models** → downloaded to `D:/models/` → appear in Model Manager for inference
+- **PyTorch models (HF format)** → downloaded to `D:/models/pytorch/{repo_name}/` → appear as base model options in Fine-Tune Studio
+Both types use the same download progress system (job queue + WebSocket progress + `DownloadProgressCard`). Downloads are always explicit — no silent background fetches.
+**Why:** The previous design (Hub = GGUF only, with a hidden PyTorch auto-download in Fine-Tune) was inconsistent and broke the mental model. A single, explicit download surface is cleaner and more trustworthy for the user.
+
+---
+
+### 2026-08-19 — Polling back-off when server is offline
+**Decision:** All polling hooks (`useModels`, `useDownloads`, `useFineTuneJob`) use an exponential back-off scheduler instead of a fixed `setInterval`. When the server is unreachable (ERR_CONNECTION_REFUSED), the retry delay doubles on each failure (starting at 3-4s, capping at 30s). When the server comes back, it resets to the fast polling cadence.
+**Why:** Fixed-interval polling with a crashed server floods the browser console and network logs with hundreds of errors per minute, making debugging harder and looking unprofessional. Back-off is the standard solution — any other real app does this (React Query, SWR, etc. all have it built in).
+
+---
+
+### 2026-08-19 — Convert to GGUF: two entry points
+**Decision:** "Convert to GGUF" is accessible from both:
+1. **Adapter Library** — to merge a trained LoRA adapter into its base model and export as GGUF
+2. **Model Manager (PyTorch section)** — to convert a downloaded HF model to GGUF without a LoRA adapter
+Both flows use the same `POST /convert/to-gguf` endpoint on the backend (with optional `adapter_id` field). The UI shows a quantization selector (Q4_K_M default).
+**Why:** Users have two natural moments where they want to convert: after training (get a ready-to-use GGUF of their fine-tuned model), or when they download a PyTorch model and want to use it for inference without fine-tuning first.

@@ -48,12 +48,21 @@ class ModelService:
         return self.loaded_model is not None
 
     async def scan_models(self) -> List[Dict[str, Any]]:
-        """Scan models directory and synchronize with DB"""
+        """Scan models directory and synchronize with DB (GGUF + PyTorch subfolders)"""
         models_path = Path(MODELS_DIR)
+        models_path.mkdir(parents=True, exist_ok=True)
+        pytorch_path = models_path / "pytorch"
+        pytorch_path.mkdir(parents=True, exist_ok=True)
         models_found = []
 
         if models_path.exists() and models_path.is_dir():
-            for file_path in models_path.glob("*.gguf"):
+            # --- Scan GGUF files in root & 1-level subdirectories ---
+            gguf_files = list(models_path.glob("*.gguf"))
+            for sub_gguf in models_path.glob("*/*.gguf"):
+                if "pytorch" not in sub_gguf.parts and not sub_gguf.name.startswith("."):
+                    gguf_files.append(sub_gguf)
+
+            for file_path in gguf_files:
                 file_size_bytes = file_path.stat().st_size
                 size_gb = round(file_size_bytes / (1024 ** 3), 2)
                 quant = parse_quantization(file_path.name)
@@ -73,7 +82,52 @@ class ModelService:
                     "context_length": 4096,
                     "loaded": is_currently_active,
                     "gpu_layers": 0,
-                    "is_mmproj": is_mmproj
+                    "is_mmproj": is_mmproj,
+                    "format": "gguf",
+                }
+                await upsert_model(model_data)
+                models_found.append(model_data)
+
+        # --- Scan D:/models/pytorch/ for HuggingFace PyTorch model folders ---
+        if pytorch_path.exists() and pytorch_path.is_dir():
+            for folder in pytorch_path.iterdir():
+                if not folder.is_dir():
+                    continue
+                # Identify as HF model if it has config.json
+                config_file = folder / "config.json"
+                if not config_file.exists():
+                    continue
+
+                folder_size_bytes = sum(
+                    f.stat().st_size for f in folder.rglob("*") if f.is_file()
+                )
+                size_gb = round(folder_size_bytes / (1024 ** 3), 2)
+                model_id = f"pytorch::{folder.name.lower()}"
+                display_name = folder.name.replace("-", " ").replace("_", " ")
+
+                # Read HF repo id from config if available
+                hf_repo_id = folder.name
+                try:
+                    import json as _json
+                    cfg = _json.loads(config_file.read_text(encoding="utf-8"))
+                    # Some models store _name_or_path
+                    hf_repo_id = cfg.get("_name_or_path", folder.name)
+                except Exception:
+                    pass
+
+                model_data = {
+                    "id": model_id,
+                    "name": display_name,
+                    "filename": folder.name,
+                    "path": str(folder),
+                    "size_gb": size_gb,
+                    "quantization": "PyTorch",
+                    "context_length": 4096,
+                    "loaded": False,  # PyTorch models can't be loaded into llama.cpp
+                    "gpu_layers": 0,
+                    "is_mmproj": False,
+                    "format": "pytorch",
+                    "hf_repo_id": hf_repo_id,
                 }
                 await upsert_model(model_data)
                 models_found.append(model_data)
@@ -82,10 +136,11 @@ class ModelService:
         db_models = await list_models()
         valid_models = []
         for m in db_models:
-            # Check if file still exists on disk
+            # Check if file/folder still exists on disk
             if Path(m["path"]).exists():
                 m["loaded"] = bool(m["id"] == self.active_model_id and self.loaded_model is not None)
                 m["is_mmproj"] = bool("mmproj" in m["filename"].lower())
+                m.setdefault("format", "gguf")
                 valid_models.append(m)
             else:
                 await delete_model_record(m["id"])
@@ -113,6 +168,12 @@ class ModelService:
 
             if not model_file.exists():
                 raise FileNotFoundError(f"Model file not found: {model_file}")
+
+            if (model_record and model_record.get("format") == "pytorch") or model_file.is_dir() or model_id.startswith("pytorch::"):
+                raise ValueError(
+                    f"'{model_file.name}' is a PyTorch HuggingFace model folder, not a GGUF file. "
+                    "Please convert it to GGUF format first using the 'Convert to GGUF' button in Model Manager."
+                )
 
             # Check if user tried to load an mmproj vision projector as a standalone LLM
             filename_lower = model_file.name.lower()
@@ -198,28 +259,46 @@ class ModelService:
             }
 
     async def delete_model(self, model_id: str) -> Dict[str, Any]:
-        """Delete model weight file from disk and database"""
+        """Delete model weight file or PyTorch model directory from disk and database"""
+        import shutil
+
         async with self.load_lock:
             # If active, unload first
             if self.active_model_id == model_id:
                 await self.unload_model(model_id)
 
             model_record = await get_model(model_id)
-            if model_record and Path(model_record["path"]).exists():
-                try:
-                    Path(model_record["path"]).unlink()
-                except Exception as e:
-                    print(f"[ERROR] Failed to delete file {model_record['path']}: {e}")
+            if model_record and model_record.get("path"):
+                p = Path(model_record["path"])
+                if p.exists():
+                    try:
+                        if p.is_dir():
+                            shutil.rmtree(str(p), ignore_errors=True)
+                        else:
+                            p.unlink(missing_ok=True)
+                    except Exception as e:
+                        print(f"[ERROR] Failed to delete path {p}: {e}")
 
-            # Also check directly in MODELS_DIR
+            # Also check directly in MODELS_DIR (for GGUF)
             direct_file = Path(MODELS_DIR) / model_id
             if direct_file.exists():
                 try:
-                    direct_file.unlink()
+                    if direct_file.is_dir():
+                        shutil.rmtree(str(direct_file), ignore_errors=True)
+                    else:
+                        direct_file.unlink(missing_ok=True)
                 except Exception:
                     pass
 
+            # Also check in D:/models/pytorch/ if it's a PyTorch model
+            if model_id.startswith("pytorch::"):
+                folder_name = model_id[len("pytorch::"):]
+                pt_dir = Path(MODELS_DIR) / "pytorch" / folder_name
+                if pt_dir.exists():
+                    shutil.rmtree(str(pt_dir), ignore_errors=True)
+
             await delete_model_record(model_id)
-            return {"id": model_id, "deleted": True, "message": "Model file deleted successfully"}
+            await self.scan_models()
+            return {"id": model_id, "deleted": True, "message": "Model deleted successfully"}
 
 model_service = ModelService()

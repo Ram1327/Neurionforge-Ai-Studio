@@ -19,7 +19,9 @@ import {
   Plus,
   Trash2,
   Calendar,
+  Wand2,
 } from "lucide-react";
+
 import { useModels } from "@/hooks/useModels";
 import { useChat } from "@/context/ChatContext";
 import { InteractiveBackground } from "@/components/InteractiveBackground";
@@ -64,8 +66,20 @@ export function AppShell({ children }: AppShellProps) {
     {
       name: "Model Manager",
       href: "/models",
-      icon: Layers,
+      icon: HardDrive,
       description: "Local GGUF weights & HF Hub",
+    },
+    {
+      name: "Fine-Tune Studio",
+      href: "/finetune",
+      icon: Wand2,
+      description: "LoRA / QLoRA training engine",
+    },
+    {
+      name: "LoRA Adapters",
+      href: "/adapters",
+      icon: Layers,
+      description: "Trained adapter library & tester",
     },
     {
       name: "System & Hardware",
@@ -74,6 +88,7 @@ export function AppShell({ children }: AppShellProps) {
       description: "CPU & RAM diagnostics",
     },
   ];
+
 
   const handleCreateNewChat = () => {
     createSession();
@@ -286,6 +301,10 @@ export function AppShell({ children }: AppShellProps) {
                 ? "Model Weight Management"
                 : pathname === "/settings"
                 ? "System Hardware Diagnostics"
+                : pathname === "/finetune"
+                ? "Fine-Tuning Studio"
+                : pathname === "/adapters"
+                ? "LoRA Adapter Library"
                 : "Inference Studio"}
             </div>
           </div>
@@ -338,7 +357,7 @@ export function AppShell({ children }: AppShellProps) {
             {/* Phase Pill */}
             <div className="flex items-center space-x-1.5 px-2.5 py-1 rounded-full bg-[#4c8dff]/10 border border-[#4c8dff]/30 text-[#9fe0ff] text-[11px]">
               <span className="status-dot" />
-              <span>Phase 1.2</span>
+              <span>Phase 2.0</span>
             </div>
           </div>
         </header>

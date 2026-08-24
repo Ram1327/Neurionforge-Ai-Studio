@@ -16,6 +16,7 @@ import {
   ArrowRight,
   ChevronRight,
   ExternalLink,
+  Wand2,
 } from "lucide-react";
 import { useModels } from "@/hooks/useModels";
 import { AiStudioLogo } from "@/components/AiStudioLogo";
@@ -179,6 +180,20 @@ export default function HomePage() {
             Launch Chat Studio
           </Link>
           <Link
+            href="/finetune"
+            onClick={() => setMobileMenuOpen(false)}
+            className="block font-mono text-sm p-3 rounded-xl text-[#eef2f8] hover:bg-[#1c2634]"
+          >
+            Fine-Tune Studio
+          </Link>
+          <Link
+            href="/adapters"
+            onClick={() => setMobileMenuOpen(false)}
+            className="block font-mono text-sm p-3 rounded-xl text-[#eef2f8] hover:bg-[#1c2634]"
+          >
+            LoRA Adapters
+          </Link>
+          <Link
             href="/models"
             onClick={() => setMobileMenuOpen(false)}
             className="block font-mono text-sm p-3 rounded-xl text-[#eef2f8] hover:bg-[#1c2634]"
@@ -194,7 +209,7 @@ export default function HomePage() {
           </Link>
           <div className="pt-2 border-t border-[rgba(238,242,248,0.08)] flex items-center gap-2 text-xs font-mono text-[#34d399] px-3">
             <span className="status-dot" />
-            <span>{isServerOnline ? "Local Core Online (:8000)" : "Phase 0: Active"}</span>
+            <span>{isServerOnline ? "Local Core Online (:8000)" : "Phase 2.0: Active"}</span>
           </div>
         </div>
       )}
@@ -252,6 +267,10 @@ export default function HomePage() {
           <Link href="/chat" className="btn-primary">
             <span>Launch Chat Studio</span>
             <ArrowRight className="w-4 h-4 ml-2" />
+          </Link>
+          <Link href="/finetune" className="btn-ghost border-[#4c8dff]/30 text-[#9fe0ff] hover:bg-[#4c8dff]/15">
+            <Wand2 className="w-4 h-4 mr-1.5 text-[#4c8dff]" />
+            <span>Fine-Tune Studio</span>
           </Link>
           <Link href="/models" className="btn-ghost">
             <span>Model Manager</span>
@@ -472,7 +491,7 @@ export default function HomePage() {
         <div className="hidden sm:block relative h-1 rounded-full bg-[#1c2634] mb-8 md:mb-12 overflow-hidden">
           <div
             className={`absolute inset-y-0 left-0 bg-gradient-to-r from-[#4c8dff] to-[#9fe0ff] transition-all duration-1000 ease-out ${
-              trackLit ? "w-[34%] shadow-[0_0_12px_#4c8dff]" : "w-0"
+              trackLit ? "w-[68%] shadow-[0_0_12px_#4c8dff]" : "w-0"
             }`}
           />
         </div>
@@ -486,7 +505,7 @@ export default function HomePage() {
                 Phase 0
               </span>
               <span className="font-mono text-[10.5px] uppercase tracking-wider px-2.5 py-0.5 rounded-full text-[#34d399] bg-[#34d399]/10 border border-[#34d399]/30 font-semibold">
-                Active
+                Complete
               </span>
             </div>
             <h3 className="font-display font-bold uppercase text-2xl text-[#eef2f8] mb-4">
@@ -495,15 +514,15 @@ export default function HomePage() {
             <ul className="space-y-2.5 text-sm text-[#eef2f8]/70">
               <li className="pt-2.5 border-t border-[rgba(238,242,248,0.07)] flex items-center gap-2">
                 <span className="w-1.5 h-1.5 rounded-full bg-[#34d399]" />
-                <span>Local inference engine</span>
+                <span>Local inference engine baseline</span>
               </li>
               <li className="pt-2.5 border-t border-[rgba(238,242,248,0.07)] flex items-center gap-2">
                 <span className="w-1.5 h-1.5 rounded-full bg-[#34d399]" />
-                <span>PEFT / LoRA studio</span>
+                <span>CLI LoRA fine-tuning verification</span>
               </li>
               <li className="pt-2.5 border-t border-[rgba(238,242,248,0.07)] flex items-center gap-2">
                 <span className="w-1.5 h-1.5 rounded-full bg-[#34d399]" />
-                <span>Global storage pool</span>
+                <span>Global D:/models storage pool</span>
               </li>
             </ul>
           </article>
@@ -514,54 +533,54 @@ export default function HomePage() {
               <span className="font-mono text-xs tracking-wider text-[#8a93a3] uppercase font-semibold">
                 Phase 1
               </span>
-              <span className="font-mono text-[10.5px] uppercase tracking-wider px-2.5 py-0.5 rounded-full text-[#4c8dff] bg-[#4c8dff]/10 border border-[#4c8dff]/30 font-semibold">
-                Building
+              <span className="font-mono text-[10.5px] uppercase tracking-wider px-2.5 py-0.5 rounded-full text-[#34d399] bg-[#34d399]/10 border border-[#34d399]/30 font-semibold">
+                Complete
               </span>
             </div>
             <h3 className="font-display font-bold uppercase text-2xl text-[#eef2f8] mb-4">
-              Studio Complete
+              Inference Studio
             </h3>
             <ul className="space-y-2.5 text-sm text-[#eef2f8]/70">
               <li className="pt-2.5 border-t border-[rgba(238,242,248,0.07)] flex items-center gap-2">
-                <span className="w-1.5 h-1.5 rounded-full bg-[#4c8dff]" />
-                <span>OpenAI-compatible API server</span>
+                <span className="w-1.5 h-1.5 rounded-full bg-[#34d399]" />
+                <span>Streaming chat &amp; session manager</span>
               </li>
               <li className="pt-2.5 border-t border-[rgba(238,242,248,0.07)] flex items-center gap-2">
-                <span className="w-1.5 h-1.5 rounded-full bg-[#4c8dff]" />
-                <span>Model library &amp; quantizer</span>
+                <span className="w-1.5 h-1.5 rounded-full bg-[#34d399]" />
+                <span>HuggingFace Hub model downloader</span>
               </li>
               <li className="pt-2.5 border-t border-[rgba(238,242,248,0.07)] flex items-center gap-2">
-                <span className="w-1.5 h-1.5 rounded-full bg-[#4c8dff]" />
-                <span>Chat playground</span>
+                <span className="w-1.5 h-1.5 rounded-full bg-[#34d399]" />
+                <span>Live RAM &amp; CPU diagnostic HUD</span>
               </li>
             </ul>
           </article>
 
           {/* Phase 2 */}
-          <article className="rounded-2xl p-6 bg-[#10161f]/70 border border-[rgba(238,242,248,0.08)] backdrop-blur-md">
+          <article className="rounded-2xl p-6 bg-[#10161f]/70 border border-[#4c8dff]/30 shadow-[0_0_20px_rgba(76,141,255,0.08)] backdrop-blur-md">
             <div className="flex items-center justify-between mb-4">
-              <span className="font-mono text-xs tracking-wider text-[#8a93a3] uppercase font-semibold">
+              <span className="font-mono text-xs tracking-wider text-[#9fe0ff] uppercase font-semibold">
                 Phase 2
               </span>
-              <span className="font-mono text-[10.5px] uppercase tracking-wider px-2.5 py-0.5 rounded-full text-[#8a93a3] bg-[#8a93a3]/10 border border-[#8a93a3]/25 font-semibold">
-                Planned
+              <span className="font-mono text-[10.5px] uppercase tracking-wider px-2.5 py-0.5 rounded-full text-[#4c8dff] bg-[#4c8dff]/15 border border-[#4c8dff]/30 font-semibold animate-pulse">
+                Active
               </span>
             </div>
             <h3 className="font-display font-bold uppercase text-2xl text-[#eef2f8] mb-4">
-              Agent Layer
+              Fine-Tuning Studio
             </h3>
             <ul className="space-y-2.5 text-sm text-[#eef2f8]/70">
               <li className="pt-2.5 border-t border-[rgba(238,242,248,0.07)] flex items-center gap-2">
-                <span className="w-1.5 h-1.5 rounded-full bg-[#8a93a3]" />
-                <span>Tool-calling agent mode</span>
+                <span className="w-1.5 h-1.5 rounded-full bg-[#4c8dff]" />
+                <span>JSONL dataset manager &amp; validator</span>
               </li>
               <li className="pt-2.5 border-t border-[rgba(238,242,248,0.07)] flex items-center gap-2">
-                <span className="w-1.5 h-1.5 rounded-full bg-[#8a93a3]" />
-                <span>Terminal-connected execution</span>
+                <span className="w-1.5 h-1.5 rounded-full bg-[#4c8dff]" />
+                <span>Real-time WebSocket loss telemetry</span>
               </li>
               <li className="pt-2.5 border-t border-[rgba(238,242,248,0.07)] flex items-center gap-2">
-                <span className="w-1.5 h-1.5 rounded-full bg-[#8a93a3]" />
-                <span>Per-model resource monitor</span>
+                <span className="w-1.5 h-1.5 rounded-full bg-[#4c8dff]" />
+                <span>LoRA adapter library &amp; studio testing</span>
               </li>
             </ul>
           </article>

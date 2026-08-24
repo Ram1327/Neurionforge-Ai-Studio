@@ -65,6 +65,10 @@ export interface ModelInfo {
   gpu_layers?: number;
   is_mmproj?: boolean;
   last_used_at?: string;
+  /** Phase 3: 'gguf' for llama.cpp models, 'pytorch' for HuggingFace folders */
+  format?: 'gguf' | 'pytorch';
+  /** Phase 3: HuggingFace repo id for pytorch models e.g. 'Qwen/Qwen2.5-0.5B-Instruct' */
+  hf_repo_id?: string;
 }
 
 export interface ModelLoadResponse {
@@ -78,6 +82,50 @@ export interface ModelDeleteResponse {
   id: string;
   deleted: boolean;
   message?: string;
+}
+
+// -----------------------------------------------------------------------------
+// Phase 3: GGUF Conversion Types
+// -----------------------------------------------------------------------------
+
+export type ConvertStatus = 'queued' | 'running' | 'done' | 'failed' | 'cancelled';
+
+export interface ConvertRequest {
+  model_id: string;
+  quantization: 'Q4_K_M' | 'Q8_0' | 'F16';
+  adapter_id?: string;
+}
+
+export interface ConvertJob {
+  job_id: string;
+  model_id: string;
+  adapter_id?: string | null;
+  quantization: string;
+  output_filename?: string | null;
+  status: ConvertStatus;
+  progress: number;
+  step: string;
+  error?: string | null;
+  started_at?: string;
+  finished_at?: string | null;
+}
+
+export interface ConvertProgressEvent {
+  job_id: string;
+  step: string;
+  progress: number;
+  status: ConvertStatus;
+  elapsed_sec: number;
+}
+
+export interface PytorchDownloadRequest {
+  repo_id: string;
+}
+
+export interface ModelNeedsDownloadError {
+  needs_download: true;
+  repo_id: string;
+  message: string;
 }
 
 // -----------------------------------------------------------------------------
@@ -138,10 +186,32 @@ export interface StartDownloadResponse {
 }
 
 // -----------------------------------------------------------------------------
-// Fine-Tuning & Adapter Types
+// Dataset Types (Phase 2)
 // -----------------------------------------------------------------------------
 
-export type JobStatus = 'queued' | 'running' | 'completed' | 'failed';
+export interface Dataset {
+  id: string;
+  name: string;
+  filename: string;
+  path: string;
+  row_count: number;
+  size_bytes: number;
+  format: 'chat' | 'instruction' | string;
+  created_at: string;
+}
+
+export interface DatasetValidationResult {
+  valid: boolean;
+  error: string;
+  row_count: number;
+  format: string;
+}
+
+// -----------------------------------------------------------------------------
+// Fine-Tuning & Adapter Types (Phase 2)
+// -----------------------------------------------------------------------------
+
+export type JobStatus = 'queued' | 'running' | 'completed' | 'failed' | 'cancelled';
 
 export interface TrainRequest {
   base_model_id: string;
@@ -152,6 +222,7 @@ export interface TrainRequest {
   learning_rate: number;
   epochs: number;
   batch_size: number;
+  target_modules?: string[];
 }
 
 export interface TrainJob {
@@ -160,11 +231,19 @@ export interface TrainJob {
   base_model_id: string;
   dataset_id: string;
   adapter_name: string;
+  lora_rank?: number;
+  lora_alpha?: number;
+  learning_rate?: number;
+  epochs?: number;
+  batch_size?: number;
+  target_modules?: string;
   current_step: number;
   total_steps: number;
-  current_loss?: number;
-  created_at: string;
-  completed_at?: string;
+  current_loss?: number | null;
+  final_loss?: number | null;
+  output_dir?: string;
+  started_at?: string;
+  finished_at?: string;
   error?: string;
 }
 
@@ -172,10 +251,10 @@ export interface TrainLogMessage {
   job_id: string;
   step: number;
   total_steps: number;
-  loss: number;
+  loss: number | null;
   epoch: number;
   elapsed_sec: number;
-  status: JobStatus;
+  status: JobStatus | 'error';
   message?: string;
 }
 
@@ -183,10 +262,31 @@ export interface AdapterInfo {
   id: string;
   name: string;
   base_model_id: string;
+  job_id?: string | null;
   path: string;
-  created_at: string;
+  lora_rank?: number;
+  lora_alpha?: number;
+  final_loss?: number | null;
+  epochs?: number;
   size_mb: number;
+  created_at: string;
+  last_tested_at?: string;
 }
+
+export interface AdapterTestStats {
+  total_tokens: number;
+  tokens_per_sec: number;
+  gen_duration_sec: number;
+  total_duration_sec: number;
+}
+
+export interface AdapterTestResponse {
+  status: string;
+  adapter_id: string;
+  response: string;
+  stats: AdapterTestStats;
+}
+
 
 // -----------------------------------------------------------------------------
 // Health & System Types

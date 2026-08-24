@@ -254,3 +254,9 @@ pre {
   animation: blink 0.8s infinite;
 }
 
+/* Indeterminate download progress bar */
+@keyframes slideBar {
+  0%   { transform: translateX(-100%); }
+  50%  { transform: translateX(150%); }
+  100% { transform: translateX(300%); }
+}
