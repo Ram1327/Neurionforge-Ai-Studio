@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import {
   Wand2,
@@ -21,13 +21,12 @@ import {
   Sliders,
   Sparkles,
   DownloadCloud,
-  X,
 } from "lucide-react";
 import { useDatasets } from "@/hooks/useDatasets";
 import { useFineTuneJob } from "@/hooks/useFineTuneJob";
+import { useModels } from "@/hooks/useModels";
 import { LossChart } from "@/components/LossChart";
 import { TrainRequest } from "@neurionforge/shared-types";
-import { usePytorchDownload } from "@/hooks/useConvert";
 
 export default function FineTunePage() {
   const {
@@ -39,6 +38,12 @@ export default function FineTunePage() {
     validateDataset,
     refresh: refreshDatasets,
   } = useDatasets();
+
+  const {
+    models,
+    isLoading: isModelsLoading,
+    refresh: refreshModels,
+  } = useModels();
 
   const {
     jobs,
@@ -54,6 +59,14 @@ export default function FineTunePage() {
     deleteJob,
   } = useFineTuneJob();
 
+  // Filter only local PyTorch models available in directory
+  const pytorchModels = models.filter(
+    (m) =>
+      (m as any).format === "pytorch" ||
+      m.quantization?.toLowerCase() === "pytorch" ||
+      m.id.startsWith("pytorch::")
+  );
+
   // Dataset upload state
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [newDatasetName, setNewDatasetName] = useState("");
@@ -62,7 +75,7 @@ export default function FineTunePage() {
 
   // Job Configurator state
   const [selectedDatasetId, setSelectedDatasetId] = useState<string>("");
-  const [baseModelId, setBaseModelId] = useState<string>("Qwen/Qwen2.5-1.5B-Instruct");
+  const [baseModelId, setBaseModelId] = useState<string>("");
   const [adapterName, setAdapterName] = useState<string>("qwen-neurion-lora-v1");
   const [loraRank, setLoraRank] = useState<number>(16);
   const [loraAlpha, setLoraAlpha] = useState<number>(32);
@@ -72,29 +85,20 @@ export default function FineTunePage() {
   const [selectedPreset, setSelectedPreset] = useState<"fast" | "balanced" | "quality">("balanced");
   const [customParamsOpen, setCustomParamsOpen] = useState(false);
 
-  // Phase 3: Download popup state
-  const [showDownloadModal, setShowDownloadModal] = useState(false);
-  const [pendingRepoId, setPendingRepoId] = useState<string>("");
-  const [pendingPayload, setPendingPayload] = useState<TrainRequest | null>(null);
-
-  const {
-    isDownloading: isPtDownloading,
-    percent: ptPercent,
-    speedMbps: ptSpeedMbps,
-    etaSec: ptEtaSec,
-    status: ptStatus,
-    error: ptError,
-    startDownload: startPtDownload,
-    reset: resetPtDownload,
-  } = usePytorchDownload(async () => {
-    // After download completes: automatically retry the pending train job
-    setShowDownloadModal(false);
-    resetPtDownload();
-    if (pendingPayload) {
-      await startJob(pendingPayload);
-      setPendingPayload(null);
+  // Synchronize baseModelId with available local PyTorch models
+  useEffect(() => {
+    if (pytorchModels.length > 0) {
+      const exists = pytorchModels.some(
+        (m) => ((m as any).hf_repo_id || m.filename) === baseModelId || m.id === baseModelId
+      );
+      if (!exists || !baseModelId) {
+        const defaultVal = (pytorchModels[0] as any).hf_repo_id || pytorchModels[0].filename;
+        setBaseModelId(defaultVal);
+      }
+    } else {
+      setBaseModelId("");
     }
-  });
+  }, [models]);
 
   // Presets handler
   const applyPreset = (preset: "fast" | "balanced" | "quality") => {
@@ -141,6 +145,11 @@ export default function FineTunePage() {
   };
 
   const handleStartTraining = async () => {
+    if (!baseModelId || pytorchModels.length === 0) {
+      alert("No local PyTorch base model selected. Please download a model from Model Manager first.");
+      return;
+    }
+
     const targetDataset = selectedDatasetId || (datasets.length > 0 ? datasets[0].id : "");
     if (!targetDataset) {
       alert("Please select or upload a dataset first.");
@@ -162,29 +171,8 @@ export default function FineTunePage() {
     try {
       await startJob(payload);
     } catch (err: any) {
-      // Phase 3: intercept 409 needs_download response
-      // api.ts stringifies the detail object, so err.message = '{"needs_download":true,"repo_id":"..."}'
-      const msg: string = err?.message || "";
-      let detail: any = null;
-      try {
-        detail = JSON.parse(msg);
-      } catch {
-        detail = null;
-      }
-
-      if (detail?.needs_download === true) {
-        setPendingRepoId(detail.repo_id || baseModelId);
-        setPendingPayload(payload);
-        setShowDownloadModal(true);
-        return;
-      }
-
-      // Fallback plain string checks
-      if (msg.includes('"needs_download":true') || msg.includes("MODEL_NOT_DOWNLOADED") || msg.toLowerCase().includes("not in d:/models")) {
-        setPendingRepoId(baseModelId);
-        setPendingPayload(payload);
-        setShowDownloadModal(true);
-      }
+      const msg = err?.message || "Failed to start training job.";
+      alert(msg);
     }
   };
 
@@ -226,102 +214,6 @@ export default function FineTunePage() {
 
   return (
     <div className="flex flex-col h-full overflow-hidden">
-      {/* ── Phase 3: PyTorch Download Modal ──────────────────────────────── */}
-      {showDownloadModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm">
-          <div className="relative w-full max-w-md mx-4 rounded-2xl bg-[#10161f] border border-[#4c8dff]/30 shadow-2xl p-6 space-y-5">
-            <button
-              onClick={() => { setShowDownloadModal(false); resetPtDownload(); }}
-              className="absolute top-4 right-4 p-1.5 rounded-xl text-[#8a93a3] hover:text-white transition"
-            >
-              <X className="w-4 h-4" />
-            </button>
-
-            <div className="flex items-start gap-3">
-              <div className="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/20 shrink-0">
-                <DownloadCloud className="w-5 h-5 text-amber-300" />
-              </div>
-              <div>
-                <h3 className="font-display font-bold text-base uppercase tracking-wide text-[#eef2f8]">Base Model Not Found</h3>
-                <p className="text-xs text-[#8a93a3] mt-1 font-mono">
-                  <span className="text-amber-300">{pendingRepoId}</span> is not in <span className="text-[#9fe0ff]">D:/models/pytorch/</span>
-                </p>
-              </div>
-            </div>
-
-            <div className="bg-[#07090d]/80 rounded-xl p-3 border border-[rgba(238,242,248,0.08)] text-xs font-mono text-[#8a93a3] space-y-1">
-              <p>To fine-tune this model, NeurionForge needs the PyTorch weights locally.</p>
-              <p className="text-[#eef2f8]">After downloading, training will start automatically.</p>
-            </div>
-
-            {/* Progress bar — shown after download starts */}
-            {isPtDownloading && (
-              <div className="space-y-2">
-                <div className="flex justify-between text-[10px] font-mono text-amber-300">
-                  <span>Downloading {pendingRepoId.split("/").pop()}...</span>
-                  <span>
-                    {ptPercent > 0
-                      ? `${ptPercent.toFixed(1)}%`
-                      : `${(ptSpeedMbps || 0) > 0 ? "Working..." : "Connecting..."}`}
-                  </span>
-                </div>
-                <div className="h-2 rounded-full bg-[#1c2634] overflow-hidden">
-                  {ptPercent > 0 ? (
-                    <div
-                      className="h-full rounded-full bg-gradient-to-r from-amber-500 to-orange-400 transition-all duration-500"
-                      style={{ width: `${ptPercent}%` }}
-                    />
-                  ) : (
-                    // Indeterminate animated bar when size is unknown
-                    <div className="h-full w-1/3 rounded-full bg-gradient-to-r from-amber-500 to-orange-400 animate-[slide_1.5s_ease-in-out_infinite]"
-                      style={{ animation: "slideBar 1.5s ease-in-out infinite" }}
-                    />
-                  )}
-                </div>
-                <div className="flex justify-between text-[10px] font-mono text-[#8a93a3]">
-                  <span>{ptSpeedMbps > 0 ? `${ptSpeedMbps.toFixed(1)} MB/s` : "Measuring speed..."}</span>
-                  <span>
-                    {ptEtaSec != null && ptEtaSec > 0
-                      ? `ETA ${Math.ceil(ptEtaSec / 60)}m`
-                      : ptPercent === 0 && ptSpeedMbps === 0
-                      ? "Download is running in background"
-                      : ""}
-                  </span>
-                </div>
-              </div>
-            )}
-
-            {ptStatus === "done" && (
-              <div className="flex items-center gap-2 text-xs font-mono text-[#34d399]">
-                <CheckCircle2 className="w-4 h-4" />
-                <span>Download complete! Starting training...</span>
-              </div>
-            )}
-
-            {ptError && (
-              <p className="text-xs font-mono text-rose-400">{ptError}</p>
-            )}
-
-            <div className="flex gap-3">
-              <button
-                onClick={() => { setShowDownloadModal(false); resetPtDownload(); setPendingPayload(null); }}
-                disabled={isPtDownloading}
-                className="flex-1 py-2.5 rounded-xl border border-[rgba(238,242,248,0.08)] text-[#8a93a3] text-xs font-mono hover:border-[rgba(238,242,248,0.2)] hover:text-[#eef2f8] transition disabled:opacity-40"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={() => startPtDownload(pendingRepoId)}
-                disabled={isPtDownloading || ptStatus === "done"}
-                className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl bg-[#4c8dff] hover:bg-[#7fb4ff] text-[#07090d] text-xs font-semibold font-mono transition disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <DownloadCloud className="w-3.5 h-3.5" />
-                {isPtDownloading ? `Downloading... ${ptPercent.toFixed(0)}%` : `Download to D:/models/pytorch/`}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Top Header */}
       <div className="flex items-center justify-between border-b border-[rgba(238,242,248,0.08)] bg-[#10161f]/90 px-4 py-3 shrink-0">
@@ -456,20 +348,56 @@ export default function FineTunePage() {
               />
             </div>
 
-            {/* Base Model */}
+            {/* Base Model — Only shows PyTorch models present in local directory */}
             <div>
-              <label className="block text-[11px] font-mono uppercase text-[#8a93a3] mb-1.5">
-                Base Model (Hugging Face)
-              </label>
-              <select
-                value={baseModelId}
-                onChange={(e) => setBaseModelId(e.target.value)}
-                className="w-full rounded-xl border border-[rgba(238,242,248,0.1)] bg-[#07090d]/80 px-3 py-2 text-xs font-mono text-[#eef2f8] focus:border-[#4c8dff] focus:outline-none"
-              >
-                <option value="Qwen/Qwen2.5-1.5B-Instruct">Qwen/Qwen2.5-1.5B-Instruct (Recommended for CPU)</option>
-                <option value="Qwen/Qwen2.5-0.5B-Instruct">Qwen/Qwen2.5-0.5B-Instruct (Ultra Fast CPU)</option>
-                <option value="meta-llama/Llama-3.2-1B-Instruct">Llama-3.2-1B-Instruct</option>
-              </select>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="block text-[11px] font-mono uppercase text-[#8a93a3]">
+                  Base Model (Local PyTorch)
+                </label>
+                {pytorchModels.length > 0 && (
+                  <span className="text-[10px] font-mono text-[#34d399] bg-[#34d399]/10 px-1.5 py-0.2 rounded border border-[#34d399]/20">
+                    {pytorchModels.length} in D:/models
+                  </span>
+                )}
+              </div>
+
+              {isModelsLoading ? (
+                <div className="p-2.5 rounded-xl border border-[rgba(238,242,248,0.08)] bg-[#07090d]/80 text-xs font-mono text-[#8a93a3]">
+                  Scanning models...
+                </div>
+              ) : pytorchModels.length > 0 ? (
+                <select
+                  value={baseModelId}
+                  onChange={(e) => setBaseModelId(e.target.value)}
+                  className="w-full rounded-xl border border-[rgba(238,242,248,0.1)] bg-[#07090d]/80 px-3 py-2 text-xs font-mono text-[#eef2f8] focus:border-[#4c8dff] focus:outline-none"
+                >
+                  {pytorchModels.map((m) => {
+                    const modelVal = (m as any).hf_repo_id || m.filename;
+                    return (
+                      <option key={m.id} value={modelVal}>
+                        {m.name} ({m.size_gb} GB)
+                      </option>
+                    );
+                  })}
+                </select>
+              ) : (
+                <div className="p-3.5 rounded-xl border border-amber-500/25 bg-amber-500/5 space-y-2">
+                  <div className="flex items-center gap-2 text-xs font-mono text-amber-300 font-semibold">
+                    <AlertTriangle className="w-4 h-4 shrink-0 text-amber-400" />
+                    <span>No PyTorch models in directory</span>
+                  </div>
+                  <p className="text-[11px] font-mono text-[#8a93a3] leading-relaxed">
+                    No PyTorch / Safetensors models found in <code className="text-[#9fe0ff]">D:/models/pytorch/</code>. Download one from HuggingFace Hub to start training.
+                  </p>
+                  <Link
+                    href="/models"
+                    className="inline-flex items-center gap-1.5 text-xs font-mono text-[#4c8dff] hover:text-[#9fe0ff] hover:underline font-semibold pt-1"
+                  >
+                    <DownloadCloud className="w-3.5 h-3.5" />
+                    <span>Go to Model Manager (HuggingFace Hub) →</span>
+                  </Link>
+                </div>
+              )}
             </div>
 
             {/* Hyperparameter Presets */}
@@ -593,15 +521,21 @@ export default function FineTunePage() {
             {/* Launch Button */}
             <button
               onClick={handleStartTraining}
-              disabled={isStarting || activeJob?.status === "running"}
+              disabled={isStarting || activeJob?.status === "running" || pytorchModels.length === 0}
               className={`w-full py-3 rounded-xl font-display font-bold text-sm tracking-wider uppercase flex items-center justify-center space-x-2 shadow-lg transition ${
-                activeJob?.status === "running"
+                activeJob?.status === "running" || pytorchModels.length === 0
                   ? "bg-[#1c2634] text-[#8a93a3] cursor-not-allowed border border-[rgba(238,242,248,0.08)]"
                   : "bg-[#4c8dff] hover:bg-[#7fb4ff] text-[#07090d] shadow-[0_0_20px_rgba(76,141,255,0.3)]"
               }`}
             >
               <Play className="w-4 h-4 fill-current" />
-              <span>{isStarting ? "Initializing..." : "Start LoRA Fine-Tuning"}</span>
+              <span>
+                {isStarting
+                  ? "Initializing..."
+                  : pytorchModels.length === 0
+                  ? "No PyTorch Model Available"
+                  : "Start LoRA Fine-Tuning"}
+              </span>
             </button>
           </div>
         </div>
@@ -692,7 +626,9 @@ export default function FineTunePage() {
               <Sparkles className="w-8 h-8 text-[#4c8dff]/40 mb-3" />
               <p>No active training session.</p>
               <p className="text-[11px] mt-1 text-[#8a93a3]/70">
-                Select a dataset and click <strong>Start LoRA Fine-Tuning</strong> to begin.
+                {pytorchModels.length === 0
+                  ? "Download a PyTorch model from Model Manager to begin."
+                  : "Select a dataset and click Start LoRA Fine-Tuning to begin."}
               </p>
             </div>
           )}
