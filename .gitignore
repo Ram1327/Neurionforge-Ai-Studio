@@ -29,11 +29,11 @@ __pycache__/
 *.log
 
 # Machine Learning weights & checkpoints
-models/
+/models/
+/adapters/
+/temp_checkpoints/
 apps/server/models/
-adapters/
 apps/server/adapters/
-temp_checkpoints/
 apps/server/temp_checkpoints/
 *.gguf
 *.bin
